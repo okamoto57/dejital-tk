@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowUp, ArrowDown, Plus, Trash2 } from "lucide-react";
+import { ArrowUp, ArrowDown, GripVertical, Plus, Trash2 } from "lucide-react";
 import { BRAND, TYPE_PROFILE, type StoreType } from "@/lib/theme";
 import { compareJa } from "@/lib/format";
 import { Card, Field, useInputCls } from "./ui";
@@ -24,15 +24,53 @@ export function StoresView({ stores }: { stores: StoreRow[] }) {
   const [type, setType] = useState<StoreType>("ramen");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [nameSort, setNameSort] = useState<"asc" | "desc">("asc");
+  // "custom" = the manually drag-sorted order (persisted as Store.sortOrder).
+  // "asc"/"desc" clicking the 店舗名 header shows a temporary alphabetical
+  // preview for quickly finding a store; dragging is disabled in that mode.
+  const [nameSort, setNameSort] = useState<"custom" | "asc" | "desc">("custom");
+  const [order, setOrder] = useState<StoreRow[]>(stores);
+  const [reordering, setReordering] = useState(false);
+  const dragIndexRef = useRef<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
-  const sortedStores = useMemo(() => {
-    const sorted = [...stores].sort((a, b) => compareJa(a.name, b.name));
+  useEffect(() => {
+    setOrder(stores);
+  }, [stores]);
+
+  const displayedStores = useMemo(() => {
+    if (nameSort === "custom") return order;
+    const sorted = [...order].sort((a, b) => compareJa(a.name, b.name));
     return nameSort === "asc" ? sorted : sorted.reverse();
-  }, [stores, nameSort]);
+  }, [order, nameSort]);
 
   function toggleNameSort() {
-    setNameSort((prev) => (prev === "asc" ? "desc" : "asc"));
+    setNameSort((prev) => (prev === "custom" ? "asc" : prev === "asc" ? "desc" : "custom"));
+  }
+
+  async function persistOrder(next: StoreRow[]) {
+    setReordering(true);
+    try {
+      await fetch("/api/stores/reorder", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ storeIds: next.map((s) => s.id) }),
+      });
+      router.refresh();
+    } finally {
+      setReordering(false);
+    }
+  }
+
+  function handleDrop(targetIndex: number) {
+    const fromIndex = dragIndexRef.current;
+    dragIndexRef.current = null;
+    setDragOverIndex(null);
+    if (fromIndex === null || fromIndex === targetIndex) return;
+    const next = [...order];
+    const [moved] = next.splice(fromIndex, 1);
+    next.splice(targetIndex, 0, moved);
+    setOrder(next);
+    persistOrder(next);
   }
 
   async function createStore() {
@@ -107,14 +145,21 @@ export function StoresView({ stores }: { stores: StoreRow[] }) {
       </Card>
 
       <Card title={`店舗一覧(${stores.length}店舗)`}>
+        <p className="mb-2 text-xs text-slate-500">
+          {nameSort === "custom"
+            ? "行の左端の ⠿ をドラッグすると、表示順(ヘッダーの店舗切替やSNS全店比較にも反映されます)を自由に並び替えられます。"
+            : "五十音順のプレビュー表示中です。ドラッグで並び替えるには「店舗名」をもう一度クリックしてカスタム順に戻してください。"}
+          {reordering && <span className="ml-2 font-semibold" style={{ color: BRAND.blue }}>保存中...</span>}
+        </p>
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b text-left text-slate-500" style={{ borderColor: "#E2E8F0" }}>
+                <th className="py-2 pr-1 w-6"></th>
                 <th className="py-2 pr-2 font-semibold">
                   <button onClick={toggleNameSort} className="flex items-center gap-1 hover:text-slate-800">
                     店舗名
-                    {nameSort === "asc" ? <ArrowUp size={12} /> : <ArrowDown size={12} />}
+                    {nameSort === "asc" ? <ArrowUp size={12} /> : nameSort === "desc" ? <ArrowDown size={12} /> : null}
                   </button>
                 </th>
                 <th className="py-2 pr-2 font-semibold">コード</th>
@@ -125,8 +170,37 @@ export function StoresView({ stores }: { stores: StoreRow[] }) {
               </tr>
             </thead>
             <tbody>
-              {sortedStores.map((s) => (
-                <tr key={s.id} className="border-b" style={{ borderColor: "#F1F5F9" }}>
+              {displayedStores.map((s, index) => (
+                <tr
+                  key={s.id}
+                  draggable={nameSort === "custom"}
+                  onDragStart={() => {
+                    dragIndexRef.current = index;
+                  }}
+                  onDragOver={(e) => {
+                    if (nameSort !== "custom") return;
+                    e.preventDefault();
+                    setDragOverIndex(index);
+                  }}
+                  onDragLeave={() => setDragOverIndex((prev) => (prev === index ? null : prev))}
+                  onDrop={(e) => {
+                    if (nameSort !== "custom") return;
+                    e.preventDefault();
+                    handleDrop(index);
+                  }}
+                  onDragEnd={() => {
+                    dragIndexRef.current = null;
+                    setDragOverIndex(null);
+                  }}
+                  className="border-b"
+                  style={{
+                    borderColor: "#F1F5F9",
+                    backgroundColor: dragOverIndex === index ? "#EFF6FF" : undefined,
+                  }}
+                >
+                  <td className="py-2 pr-1 text-slate-300" style={{ cursor: nameSort === "custom" ? "grab" : "default" }}>
+                    {nameSort === "custom" && <GripVertical size={14} />}
+                  </td>
                   <td className="py-2 pr-2 font-semibold">{s.name}</td>
                   <td className="py-2 pr-2 text-slate-500">{s.code}</td>
                   <td className="py-2 pr-2">{TYPE_PROFILE[s.type].label}</td>

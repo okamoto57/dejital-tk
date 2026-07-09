@@ -3,7 +3,7 @@ import type { Session } from "next-auth";
 
 export async function getAccessibleStores(session: Session) {
   if (session.user.role === "HQ_ADMIN") {
-    return prisma.store.findMany({ orderBy: { name: "asc" } });
+    return prisma.store.findMany({ orderBy: { sortOrder: "asc" } });
   }
   if (!session.user.storeId) return [];
   const store = await prisma.store.findUnique({ where: { id: session.user.storeId } });

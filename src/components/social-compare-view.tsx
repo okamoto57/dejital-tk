@@ -23,15 +23,18 @@ export interface SocialRow {
 
 export function SocialCompareView({ rows, yearMonth }: { rows: SocialRow[]; yearMonth: string }) {
   const theme = useAppTheme();
-  const [nameSort, setNameSort] = useState<"asc" | "desc">("asc");
+  // "custom" shows rows in the store-management drag order (the default);
+  // clicking 店舗名 cycles to a temporary 五十音順 preview and back.
+  const [nameSort, setNameSort] = useState<"custom" | "asc" | "desc">("custom");
 
   const sortedRows = useMemo(() => {
+    if (nameSort === "custom") return rows;
     const sorted = [...rows].sort((a, b) => compareJa(a.name, b.name));
     return nameSort === "asc" ? sorted : sorted.reverse();
   }, [rows, nameSort]);
 
   function toggleNameSort() {
-    setNameSort((prev) => (prev === "asc" ? "desc" : "asc"));
+    setNameSort((prev) => (prev === "custom" ? "asc" : prev === "asc" ? "desc" : "custom"));
   }
 
   const withGoogle = rows.filter((r) => r.google);
@@ -80,7 +83,7 @@ export function SocialCompareView({ rows, yearMonth }: { rows: SocialRow[]; year
                 <th className={thLeft} rowSpan={2}>
                   <button onClick={toggleNameSort} className="flex items-center gap-1 hover:underline">
                     店舗名
-                    {nameSort === "asc" ? <ArrowUp size={12} /> : <ArrowDown size={12} />}
+                    {nameSort === "asc" ? <ArrowUp size={12} /> : nameSort === "desc" ? <ArrowDown size={12} /> : null}
                   </button>
                 </th>
                 <th className={th} colSpan={3} style={{ borderLeft: `1px solid ${borderColor}` }}>

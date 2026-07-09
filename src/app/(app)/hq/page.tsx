@@ -14,7 +14,7 @@ export default async function HqPage({ searchParams }: { searchParams: Promise<{
   const params = await searchParams;
   const yearMonth = params.month ?? yearMonthNow();
 
-  const stores = await prisma.store.findMany({ orderBy: { name: "asc" } });
+  const stores = await prisma.store.findMany({ orderBy: { sortOrder: "asc" } });
   const bundles = await Promise.all(stores.map((s) => getMonthlyBundle(s.id, yearMonth)));
 
   const rows: HqStoreRow[] = bundles.map((b) => ({

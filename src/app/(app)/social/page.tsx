@@ -14,7 +14,7 @@ export default async function SocialComparePage({ searchParams }: { searchParams
   const params = await searchParams;
   const yearMonth = params.month ?? yearMonthNow();
 
-  const stores = await prisma.store.findMany({ orderBy: { name: "asc" } });
+  const stores = await prisma.store.findMany({ orderBy: { sortOrder: "asc" } });
 
   const rows: SocialRow[] = await Promise.all(
     stores.map(async (store) => {

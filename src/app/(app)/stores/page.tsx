@@ -8,7 +8,7 @@ export default async function StoresPage() {
   if (!session) redirect("/login");
   if (session.user.role !== "HQ_ADMIN") redirect("/dashboard");
 
-  const stores = await prisma.store.findMany({ orderBy: { name: "asc" } });
+  const stores = await prisma.store.findMany({ orderBy: { sortOrder: "asc" } });
 
   return <StoresView stores={stores} />;
 }

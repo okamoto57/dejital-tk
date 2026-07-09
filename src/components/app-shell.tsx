@@ -4,7 +4,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { LayoutDashboard, CalendarDays, Wallet, Megaphone, Building2, Store, Moon, Sun, PencilLine, Share2, CalendarClock, ClipboardList, UserCircle } from "lucide-react";
 import { BRAND } from "@/lib/theme";
-import { yearMonthNow, compareJa } from "@/lib/format";
+import { yearMonthNow } from "@/lib/format";
 import { logout } from "@/lib/actions";
 import { Logo } from "./ui";
 import { useAppTheme } from "./theme-provider";
@@ -29,8 +29,7 @@ export function AppShell({
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const sortedStores = [...stores].sort((a, b) => compareJa(a.name, b.name));
-  const currentStoreId = searchParams.get("store") ?? sortedStores[0]?.id ?? null;
+  const currentStoreId = searchParams.get("store") ?? stores[0]?.id ?? null;
   const currentMonth = searchParams.get("month") ?? yearMonthNow();
   const showMonthPicker = !pathname.startsWith("/stores");
 
@@ -86,7 +85,7 @@ export function AppShell({
                   onChange={(e) => switchStore(e.target.value)}
                   className={`max-w-xs cursor-pointer bg-transparent text-sm font-semibold outline-none ${theme.text}`}
                 >
-                  {sortedStores.map((s) => (
+                  {stores.map((s) => (
                     <option key={s.id} value={s.id} className="text-slate-800">
                       {s.name}
                     </option>

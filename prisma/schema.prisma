@@ -39,6 +39,7 @@ model Store {
   type     StoreType
   targetF  Float
   targetL  Float
+  sortOrder Int     @default(0)
   createdAt DateTime @default(now())
 
   users              User[]
