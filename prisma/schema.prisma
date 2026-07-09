@@ -1,0 +1,157 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  HQ_ADMIN
+  STORE_MANAGER
+}
+
+enum StoreType {
+  ramen
+  yakiniku
+  spa
+  sweets
+  dining
+  ck
+}
+
+enum InOut {
+  IN
+  OUT
+}
+
+enum ReputationSource {
+  GOOGLE
+  TABELOG
+  DAZHONG
+}
+
+model Store {
+  id       String   @id @default(cuid())
+  name     String   @unique
+  code     String   @unique
+  type     StoreType
+  targetF  Float
+  targetL  Float
+  createdAt DateTime @default(now())
+
+  users              User[]
+  dailyRecords       DailyRecord[]
+  inventorySnapshots InventorySnapshot[]
+  pettyCashEntries   PettyCashEntry[]
+  pettyCashOpenings  PettyCashOpening[]
+  gourmetMedia       GourmetMediaRecord[]
+  snsMetrics         SnsMetric[]
+  reputationSnapshots ReputationSnapshot[]
+}
+
+model User {
+  id           String  @id @default(cuid())
+  email        String  @unique
+  passwordHash String
+  name         String
+  role         Role
+  storeId      String?
+  store        Store?  @relation(fields: [storeId], references: [id])
+  createdAt    DateTime @default(now())
+}
+
+/** A row can exist for budget only (actual* still null, not yet recorded)
+ * or for actuals (once the store manager records that day's results). */
+model DailyRecord {
+  id          String   @id @default(cuid())
+  storeId     String
+  store       Store    @relation(fields: [storeId], references: [id])
+  date        DateTime
+  budgetSales Float    @default(0)
+  laborBudget Float    @default(0)
+  actualSales Float?
+  foodCost    Float?
+  laborCost   Float?
+  customers   Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([storeId, date])
+}
+
+model InventorySnapshot {
+  id              String @id @default(cuid())
+  storeId         String
+  store           Store  @relation(fields: [storeId], references: [id])
+  yearMonth       String // "YYYY-MM"
+  beginInventory  Float
+  endInventory    Float
+
+  @@unique([storeId, yearMonth])
+}
+
+model PettyCashEntry {
+  id       String   @id @default(cuid())
+  storeId  String
+  store    Store    @relation(fields: [storeId], references: [id])
+  date     DateTime
+  category String
+  inout    InOut
+  amount   Float
+  payee    String
+  note     String
+  isFood   Boolean
+  createdAt DateTime @default(now())
+}
+
+model PettyCashOpening {
+  id        String @id @default(cuid())
+  storeId   String
+  store     Store  @relation(fields: [storeId], references: [id])
+  yearMonth String
+  opening   Float
+
+  @@unique([storeId, yearMonth])
+}
+
+model GourmetMediaRecord {
+  id        String @id @default(cuid())
+  storeId   String
+  store     Store  @relation(fields: [storeId], references: [id])
+  yearMonth String
+  mediaName String
+  cost      Float
+  revenue   Float
+  guests    Int
+  score     Float
+
+  @@unique([storeId, yearMonth, mediaName])
+}
+
+model SnsMetric {
+  id        String @id @default(cuid())
+  storeId   String
+  store     Store  @relation(fields: [storeId], references: [id])
+  yearMonth String
+  platform  String // "instagram" | "tiktok" | "line"
+  metrics   String // JSON-encoded platform-specific fields
+
+  @@unique([storeId, yearMonth, platform])
+}
+
+model ReputationSnapshot {
+  id            String           @id @default(cuid())
+  storeId       String
+  store         Store            @relation(fields: [storeId], references: [id])
+  yearMonth     String
+  source        ReputationSource
+  score         Float
+  scorePrev     Float
+  reviews       Int
+  reviewsDelta  Int
+  extra         String // JSON-encoded source-specific extras
+
+  @@unique([storeId, yearMonth, source])
+}
