@@ -6,3 +6,8 @@ export const yearMonthNow = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 };
+
+/** Compares Japanese store names in natural reading order (rather than raw
+ * Unicode code-point order, which would separate kana-led and kanji-led
+ * names in a way that looks unsorted to a Japanese reader). */
+export const compareJa = (a: string, b: string) => a.localeCompare(b, "ja");

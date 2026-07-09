@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2 } from "lucide-react";
+import { ArrowUp, ArrowDown, Plus, Trash2 } from "lucide-react";
 import { BRAND, TYPE_PROFILE, type StoreType } from "@/lib/theme";
+import { compareJa } from "@/lib/format";
 import { Card, Field, useInputCls } from "./ui";
 
 export interface StoreRow {
@@ -23,6 +24,16 @@ export function StoresView({ stores }: { stores: StoreRow[] }) {
   const [type, setType] = useState<StoreType>("ramen");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [nameSort, setNameSort] = useState<"asc" | "desc">("asc");
+
+  const sortedStores = useMemo(() => {
+    const sorted = [...stores].sort((a, b) => compareJa(a.name, b.name));
+    return nameSort === "asc" ? sorted : sorted.reverse();
+  }, [stores, nameSort]);
+
+  function toggleNameSort() {
+    setNameSort((prev) => (prev === "asc" ? "desc" : "asc"));
+  }
 
   async function createStore() {
     setSubmitting(true);
@@ -100,7 +111,12 @@ export function StoresView({ stores }: { stores: StoreRow[] }) {
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b text-left text-slate-500" style={{ borderColor: "#E2E8F0" }}>
-                <th className="py-2 pr-2 font-semibold">店舗名</th>
+                <th className="py-2 pr-2 font-semibold">
+                  <button onClick={toggleNameSort} className="flex items-center gap-1 hover:text-slate-800">
+                    店舗名
+                    {nameSort === "asc" ? <ArrowUp size={12} /> : <ArrowDown size={12} />}
+                  </button>
+                </th>
                 <th className="py-2 pr-2 font-semibold">コード</th>
                 <th className="py-2 pr-2 font-semibold">業態</th>
                 <th className="py-2 pr-2 text-right font-semibold">目標F</th>
@@ -109,7 +125,7 @@ export function StoresView({ stores }: { stores: StoreRow[] }) {
               </tr>
             </thead>
             <tbody>
-              {stores.map((s) => (
+              {sortedStores.map((s) => (
                 <tr key={s.id} className="border-b" style={{ borderColor: "#F1F5F9" }}>
                   <td className="py-2 pr-2 font-semibold">{s.name}</td>
                   <td className="py-2 pr-2 text-slate-500">{s.code}</td>

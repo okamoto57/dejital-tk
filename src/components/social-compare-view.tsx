@@ -1,7 +1,10 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import Link from "next/link";
+import { ArrowUp, ArrowDown } from "lucide-react";
 import { BRAND } from "@/lib/theme";
+import { compareJa } from "@/lib/format";
 import { Card, Delta } from "./ui";
 import { useAppTheme } from "./theme-provider";
 
@@ -20,6 +23,16 @@ export interface SocialRow {
 
 export function SocialCompareView({ rows, yearMonth }: { rows: SocialRow[]; yearMonth: string }) {
   const theme = useAppTheme();
+  const [nameSort, setNameSort] = useState<"asc" | "desc">("asc");
+
+  const sortedRows = useMemo(() => {
+    const sorted = [...rows].sort((a, b) => compareJa(a.name, b.name));
+    return nameSort === "asc" ? sorted : sorted.reverse();
+  }, [rows, nameSort]);
+
+  function toggleNameSort() {
+    setNameSort((prev) => (prev === "asc" ? "desc" : "asc"));
+  }
 
   const withGoogle = rows.filter((r) => r.google);
   const avgGoogle = withGoogle.length ? withGoogle.reduce((a, r) => a + (r.google?.score ?? 0), 0) / withGoogle.length : null;
@@ -65,7 +78,10 @@ export function SocialCompareView({ rows, yearMonth }: { rows: SocialRow[]; year
             <thead>
               <tr className={theme.subText} style={{ borderBottom: `1px solid ${borderColor}` }}>
                 <th className={thLeft} rowSpan={2}>
-                  店舗名
+                  <button onClick={toggleNameSort} className="flex items-center gap-1 hover:underline">
+                    店舗名
+                    {nameSort === "asc" ? <ArrowUp size={12} /> : <ArrowDown size={12} />}
+                  </button>
                 </th>
                 <th className={th} colSpan={3} style={{ borderLeft: `1px solid ${borderColor}` }}>
                   Google
@@ -108,7 +124,7 @@ export function SocialCompareView({ rows, yearMonth }: { rows: SocialRow[]; year
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
+              {sortedRows.map((r) => (
                 <tr key={r.storeId} style={{ borderBottom: `1px solid ${rowBorder}` }}>
                   <td className="py-1.5 px-2 text-left font-semibold whitespace-nowrap">
                     <Link href={`/marketing?store=${r.storeId}`} className="hover:underline" style={{ color: BRAND.blue }}>
