@@ -1,7 +1,8 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { LayoutDashboard, CalendarDays, Wallet, Megaphone, Building2, Store, Moon, Sun, PencilLine, Share2, CalendarClock, ClipboardList } from "lucide-react";
+import Link from "next/link";
+import { LayoutDashboard, CalendarDays, Wallet, Megaphone, Building2, Store, Moon, Sun, PencilLine, Share2, CalendarClock, ClipboardList, UserCircle } from "lucide-react";
 import { BRAND } from "@/lib/theme";
 import { yearMonthNow } from "@/lib/format";
 import { logout } from "@/lib/actions";
@@ -109,7 +110,14 @@ export function AppShell({
                 />
               </div>
             )}
-            <span className={`hidden text-xs sm:inline ${theme.subText}`}>{userName}</span>
+            <Link
+              href="/account"
+              className={`flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold ${theme.cardBorder} ${theme.subText}`}
+              title="アカウント設定・パスワード変更"
+            >
+              <UserCircle size={14} />
+              <span className="hidden sm:inline">{userName}</span>
+            </Link>
             <button
               onClick={theme.toggle}
               className={`flex h-9 w-9 items-center justify-center rounded-xl border ${theme.cardBorder} ${
