@@ -3,7 +3,7 @@
 import { Camera, Video, MessageCircle } from "lucide-react";
 import type { DailyRow } from "@/lib/types";
 import type { GourmetRow, ReputationInitial, PreviousScoreRef } from "./entry-forms";
-import { DailyRecordForm, BulkBudgetForm, GourmetMediaForm, ReputationForm, SnsEntryForm } from "./entry-forms";
+import { DailyRecordForm, BulkDailyRecordForm, BulkBudgetForm, GourmetMediaForm, ReputationForm, SnsEntryForm } from "./entry-forms";
 
 export interface SnsInitialData {
   instagram: Record<string, number>;
@@ -44,6 +44,8 @@ export function DataEntryView({
   return (
     <div className="space-y-4">
       <DailyRecordForm storeId={storeId} yearMonth={yearMonth} />
+
+      <BulkDailyRecordForm storeId={storeId} yearMonth={yearMonth} />
 
       <BulkBudgetForm storeId={storeId} yearMonth={yearMonth} rows={dailyRows} />
 
