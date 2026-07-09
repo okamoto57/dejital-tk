@@ -9,6 +9,22 @@ import type { DailyRow } from "@/lib/types";
 import { Card, Field, useInputCls } from "./ui";
 import { useAppTheme } from "./theme-provider";
 
+/** Strips thousands-separator commas (half-width "," and full-width "，"),
+ * yen signs, and whitespace so values copied from Excel like "1,000,000"
+ * or "￥1,000" parse as numbers instead of becoming NaN. */
+function cleanNumeric(text: string): string {
+  return text.replace(/[,，¥￥\s]/g, "");
+}
+
+/** Parses a block copied from Excel/Sheets (tab-separated columns,
+ * newline-separated rows) into a 2D array of cell strings, with
+ * number formatting (commas, yen signs) stripped from each cell. */
+function parsePastedGrid(text: string): string[][] | null {
+  if (!text.includes("\t") && !text.includes("\n")) return null; // plain single value: let default paste happen
+  const lines = text.replace(/\r/g, "").split("\n").filter((_, i, arr) => !(i === arr.length - 1 && arr[i] === ""));
+  return lines.map((line) => line.split("\t").map((cell) => cleanNumeric(cell.trim())));
+}
+
 export function DailyRecordForm({ storeId, yearMonth }: { storeId: string; yearMonth: string }) {
   const theme = useAppTheme();
   const inputCls = useInputCls();
@@ -29,10 +45,10 @@ export function DailyRecordForm({ storeId, yearMonth }: { storeId: string; yearM
       // Only send fields the user actually typed into, so leaving e.g. 売上実績
       // blank while only updating 人件費 doesn't zero out the existing sales value.
       const payload: Record<string, unknown> = { storeId, date };
-      if (actualSales !== "") payload.actualSales = Number(actualSales);
-      if (foodCost !== "") payload.foodCost = Number(foodCost);
-      if (laborCost !== "") payload.laborCost = Number(laborCost);
-      if (customers !== "") payload.customers = Number(customers);
+      if (actualSales !== "") payload.actualSales = Number(cleanNumeric(actualSales));
+      if (foodCost !== "") payload.foodCost = Number(cleanNumeric(foodCost));
+      if (laborCost !== "") payload.laborCost = Number(cleanNumeric(laborCost));
+      if (customers !== "") payload.customers = Number(cleanNumeric(customers));
 
       const res = await fetch("/api/daily-records", {
         method: "POST",
@@ -137,21 +153,19 @@ export function BulkDailyRecordForm({ storeId, yearMonth }: { storeId: string; y
   // rows) be pasted starting at whichever cell has focus, filling downward
   // and rightward across the grid — same mechanic as pasting into a sheet.
   function handlePaste(e: React.ClipboardEvent<HTMLInputElement>, rowIndex: number, colIndex: number) {
-    const text = e.clipboardData.getData("text");
-    if (!text.includes("\t") && !text.includes("\n")) return; // plain single value: let the default paste happen
+    const grid = parsePastedGrid(e.clipboardData.getData("text"));
+    if (!grid) return;
     e.preventDefault();
-    const pastedRows = text.replace(/\r/g, "").split("\n").filter((_, i, arr) => !(i === arr.length - 1 && arr[i] === ""));
 
     setRows((prev) => {
       const next = prev.map((r) => ({ ...r }));
-      pastedRows.forEach((rowText, rOffset) => {
+      grid.forEach((cells, rOffset) => {
         const targetRow = rowIndex + rOffset;
         if (targetRow >= next.length) return;
-        const cells = rowText.split("\t");
         cells.forEach((cellText, cOffset) => {
           const targetCol = colIndex + cOffset;
           if (targetCol >= BULK_DAILY_COLUMNS.length) return;
-          next[targetRow][BULK_DAILY_COLUMNS[targetCol]] = cellText.trim();
+          next[targetRow][BULK_DAILY_COLUMNS[targetCol]] = cellText;
         });
       });
       return next;
@@ -170,7 +184,7 @@ export function BulkDailyRecordForm({ storeId, yearMonth }: { storeId: string; y
           let hasValue = false;
           for (const field of BULK_DAILY_COLUMNS) {
             if (row[field] !== "") {
-              day[field] = Number(row[field]);
+              day[field] = Number(cleanNumeric(row[field]));
               hasValue = true;
             }
           }
@@ -287,9 +301,36 @@ export function BulkBudgetForm({ storeId, yearMonth, rows }: { storeId: string; 
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
+  const BUDGET_COLUMNS = ["budgetSales", "laborBudget"] as const;
+
   function update(isoDate: string, field: "budgetSales" | "laborBudget", value: string) {
     setSaved(false);
     setDraft((prev) => ({ ...prev, [isoDate]: { ...prev[isoDate], [field]: value } }));
+  }
+
+  // Same Excel-paste mechanic as the daily-record grid: paste a block starting
+  // at any cell and it fills downward/rightward across the remaining rows.
+  function handlePaste(e: React.ClipboardEvent<HTMLInputElement>, rowIndex: number, colIndex: number) {
+    const grid = parsePastedGrid(e.clipboardData.getData("text"));
+    if (!grid) return;
+    e.preventDefault();
+    setSaved(false);
+
+    setDraft((prev) => {
+      const next = { ...prev };
+      grid.forEach((cells, rOffset) => {
+        const targetRow = rows[rowIndex + rOffset];
+        if (!targetRow) return;
+        const current = { ...next[targetRow.isoDate] };
+        cells.forEach((cellText, cOffset) => {
+          const targetCol = BUDGET_COLUMNS[colIndex + cOffset];
+          if (!targetCol) return;
+          current[targetCol] = cellText;
+        });
+        next[targetRow.isoDate] = current;
+      });
+      return next;
+    });
   }
 
   async function saveAll() {
@@ -299,8 +340,8 @@ export function BulkBudgetForm({ storeId, yearMonth, rows }: { storeId: string; 
     try {
       const days = rows.map((r) => ({
         date: r.isoDate,
-        budgetSales: Number(draft[r.isoDate]?.budgetSales) || 0,
-        laborBudget: Number(draft[r.isoDate]?.laborBudget) || 0,
+        budgetSales: Number(cleanNumeric(draft[r.isoDate]?.budgetSales ?? "")) || 0,
+        laborBudget: Number(cleanNumeric(draft[r.isoDate]?.laborBudget ?? "")) || 0,
       }));
       const res = await fetch("/api/daily-budgets/bulk", {
         method: "POST",
@@ -335,7 +376,7 @@ export function BulkBudgetForm({ storeId, yearMonth, rows }: { storeId: string; 
       }
     >
       <p className={`mb-3 text-xs ${theme.subText}`}>
-        この画面を1回開いた状態で、当月すべての日の売上予算・人件費予算をまとめて入力し、最後に1回「全日まとめて保存」を押してください。
+        この画面を1回開いた状態で、当月すべての日の売上予算・人件費予算をまとめて入力し、最後に1回「全日まとめて保存」を押してください。Excelなどの表からコピーした数値を、いずれかのセルに貼り付けると自動的に複数マスへ展開されます。
       </p>
       <div className="max-h-80 overflow-y-auto rounded-lg border" style={{ borderColor: theme.dark ? "#1E293B" : "#E2E8F0" }}>
         <table className="w-full text-xs">
@@ -347,7 +388,7 @@ export function BulkBudgetForm({ storeId, yearMonth, rows }: { storeId: string; 
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => (
+            {rows.map((r, rowIndex) => (
               <tr key={r.isoDate} className="border-b" style={{ borderColor: theme.dark ? "#111C2E" : "#F1F5F9" }}>
                 <td className="py-1 pl-2 pr-2 whitespace-nowrap font-semibold">
                   {r.dateLabel} <span className={theme.subText}>({r.dowLabel})</span>
@@ -357,6 +398,7 @@ export function BulkBudgetForm({ storeId, yearMonth, rows }: { storeId: string; 
                     type="number"
                     value={draft[r.isoDate]?.budgetSales ?? ""}
                     onChange={(e) => update(r.isoDate, "budgetSales", e.target.value)}
+                    onPaste={(e) => handlePaste(e, rowIndex, 0)}
                     className={inputCls}
                   />
                 </td>
@@ -365,6 +407,7 @@ export function BulkBudgetForm({ storeId, yearMonth, rows }: { storeId: string; 
                     type="number"
                     value={draft[r.isoDate]?.laborBudget ?? ""}
                     onChange={(e) => update(r.isoDate, "laborBudget", e.target.value)}
+                    onPaste={(e) => handlePaste(e, rowIndex, 1)}
                     className={inputCls}
                   />
                 </td>
