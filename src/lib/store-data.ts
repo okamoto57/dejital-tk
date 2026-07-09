@@ -1,3 +1,4 @@
+import type { DailyRecord, InventorySnapshot, PettyCashEntry, ReputationSnapshot, Store } from "@prisma/client";
 import { prisma } from "./prisma";
 import { aggregatePettyCash, computeFlMetrics, isFlAlert, buildRadarData, radarScore, budgetAchievePct, previousYearMonth } from "./metrics";
 
@@ -8,31 +9,20 @@ export function monthRange(yearMonth: string) {
   return { start, end };
 }
 
-export async function getMonthlyBundle(storeId: string, yearMonth: string) {
-  const { start, end } = monthRange(yearMonth);
+interface RawBundleInputs {
+  dailyRecords: DailyRecord[];
+  inventorySnapshot: InventorySnapshot | null;
+  pettyCashEntries: PettyCashEntry[];
+  pettyCashOpening: number;
+  googleRep: ReputationSnapshot | null;
+  tabelogRep: ReputationSnapshot | null;
+}
 
-  const [store, dailyRecords, inventorySnapshot, pettyCashEntries, pettyCashOpening, googleRep, tabelogRep] =
-    await Promise.all([
-      prisma.store.findUniqueOrThrow({ where: { id: storeId } }),
-      prisma.dailyRecord.findMany({
-        where: { storeId, date: { gte: start, lt: end } },
-        orderBy: { date: "asc" },
-      }),
-      prisma.inventorySnapshot.findUnique({ where: { storeId_yearMonth: { storeId, yearMonth } } }),
-      prisma.pettyCashEntry.findMany({
-        where: { storeId, date: { gte: start, lt: end } },
-        orderBy: { date: "asc" },
-      }),
-      prisma.pettyCashOpening.findUnique({ where: { storeId_yearMonth: { storeId, yearMonth } } }),
-      prisma.reputationSnapshot.findUnique({
-        where: { storeId_yearMonth_source: { storeId, yearMonth, source: "GOOGLE" } },
-      }),
-      prisma.reputationSnapshot.findUnique({
-        where: { storeId_yearMonth_source: { storeId, yearMonth, source: "TABELOG" } },
-      }),
-    ]);
+/** Pure aggregation shared by the single-store and batched fetchers below:
+ * turns already-fetched rows for one store into the computed FL/radar bundle. */
+function buildBundle(store: Store, raw: RawBundleInputs) {
+  const { dailyRecords, inventorySnapshot, pettyCashEntries, pettyCashOpening, googleRep, tabelogRep } = raw;
 
-  const opening = pettyCashOpening?.opening ?? 0;
   const pettyCashAgg = aggregatePettyCash(
     pettyCashEntries.map((e) => ({
       amount: e.amount,
@@ -40,7 +30,7 @@ export async function getMonthlyBundle(storeId: string, yearMonth: string) {
       category: e.category,
       isFood: e.isFood,
     })),
-    opening
+    pettyCashOpening
   );
 
   const budgetSales = dailyRecords.reduce((a, r) => a + r.budgetSales, 0);
@@ -81,7 +71,7 @@ export async function getMonthlyBundle(storeId: string, yearMonth: string) {
     dailyRecords,
     inventorySnapshot,
     pettyCashEntries,
-    pettyCashOpening: opening,
+    pettyCashOpening,
     pettyCashAgg,
     monthlyTotals: { budgetSales, laborBudget, actualSales, foodCost, laborCost, customers },
     recordedDaysCount,
@@ -93,6 +83,98 @@ export async function getMonthlyBundle(storeId: string, yearMonth: string) {
     googleReputation: googleRep,
     tabelogReputation: tabelogRep,
   };
+}
+
+export async function getMonthlyBundle(storeId: string, yearMonth: string) {
+  const { start, end } = monthRange(yearMonth);
+
+  const [store, dailyRecords, inventorySnapshot, pettyCashEntries, pettyCashOpening, googleRep, tabelogRep] =
+    await Promise.all([
+      prisma.store.findUniqueOrThrow({ where: { id: storeId } }),
+      prisma.dailyRecord.findMany({
+        where: { storeId, date: { gte: start, lt: end } },
+        orderBy: { date: "asc" },
+      }),
+      prisma.inventorySnapshot.findUnique({ where: { storeId_yearMonth: { storeId, yearMonth } } }),
+      prisma.pettyCashEntry.findMany({
+        where: { storeId, date: { gte: start, lt: end } },
+        orderBy: { date: "asc" },
+      }),
+      prisma.pettyCashOpening.findUnique({ where: { storeId_yearMonth: { storeId, yearMonth } } }),
+      prisma.reputationSnapshot.findUnique({
+        where: { storeId_yearMonth_source: { storeId, yearMonth, source: "GOOGLE" } },
+      }),
+      prisma.reputationSnapshot.findUnique({
+        where: { storeId_yearMonth_source: { storeId, yearMonth, source: "TABELOG" } },
+      }),
+    ]);
+
+  return buildBundle(store, {
+    dailyRecords,
+    inventorySnapshot,
+    pettyCashEntries,
+    pettyCashOpening: pettyCashOpening?.opening ?? 0,
+    googleRep,
+    tabelogRep,
+  });
+}
+
+/** Same result as calling getMonthlyBundle() once per store, but fetches each
+ * table with a single `storeId IN (...)` query instead of one round-trip per
+ * store — used by the all-store comparison pages (hq, social) where doing it
+ * per-store means 7 queries x 24 stores fired at once. */
+export async function getMonthlyBundlesForStores(stores: Store[], yearMonth: string) {
+  const { start, end } = monthRange(yearMonth);
+  const storeIds = stores.map((s) => s.id);
+
+  const [dailyRecordsAll, inventorySnapshotsAll, pettyCashEntriesAll, pettyCashOpeningsAll, googleRepsAll, tabelogRepsAll] =
+    await Promise.all([
+      prisma.dailyRecord.findMany({
+        where: { storeId: { in: storeIds }, date: { gte: start, lt: end } },
+        orderBy: { date: "asc" },
+      }),
+      prisma.inventorySnapshot.findMany({ where: { storeId: { in: storeIds }, yearMonth } }),
+      prisma.pettyCashEntry.findMany({
+        where: { storeId: { in: storeIds }, date: { gte: start, lt: end } },
+        orderBy: { date: "asc" },
+      }),
+      prisma.pettyCashOpening.findMany({ where: { storeId: { in: storeIds }, yearMonth } }),
+      prisma.reputationSnapshot.findMany({ where: { storeId: { in: storeIds }, yearMonth, source: "GOOGLE" } }),
+      prisma.reputationSnapshot.findMany({ where: { storeId: { in: storeIds }, yearMonth, source: "TABELOG" } }),
+    ]);
+
+  const groupByStore = <T extends { storeId: string }>(rows: T[]) => {
+    const map = new Map<string, T[]>();
+    for (const row of rows) {
+      const bucket = map.get(row.storeId);
+      if (bucket) bucket.push(row);
+      else map.set(row.storeId, [row]);
+    }
+    return map;
+  };
+
+  const dailyByStore = groupByStore(dailyRecordsAll);
+  const pettyCashByStore = groupByStore(pettyCashEntriesAll);
+  const inventoryByStore = new Map(inventorySnapshotsAll.map((r) => [r.storeId, r]));
+  const openingByStore = new Map(pettyCashOpeningsAll.map((r) => [r.storeId, r]));
+  const googleByStore = new Map(googleRepsAll.map((r) => [r.storeId, r]));
+  const tabelogByStore = new Map(tabelogRepsAll.map((r) => [r.storeId, r]));
+
+  const result = new Map<string, ReturnType<typeof buildBundle>>();
+  for (const store of stores) {
+    result.set(
+      store.id,
+      buildBundle(store, {
+        dailyRecords: dailyByStore.get(store.id) ?? [],
+        inventorySnapshot: inventoryByStore.get(store.id) ?? null,
+        pettyCashEntries: pettyCashByStore.get(store.id) ?? [],
+        pettyCashOpening: openingByStore.get(store.id)?.opening ?? 0,
+        googleRep: googleByStore.get(store.id) ?? null,
+        tabelogRep: tabelogByStore.get(store.id) ?? null,
+      })
+    );
+  }
+  return result;
 }
 
 /** The previous month's ending inventory, used to auto-fill this month's

@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getMonthlyBundle } from "@/lib/store-data";
+import { getMonthlyBundlesForStores } from "@/lib/store-data";
 import { yearMonthNow } from "@/lib/format";
 import { TYPE_PROFILE } from "@/lib/theme";
 import { HqCompareView, type HqStoreRow } from "@/components/hq-compare-view";
@@ -15,7 +15,8 @@ export default async function HqPage({ searchParams }: { searchParams: Promise<{
   const yearMonth = params.month ?? yearMonthNow();
 
   const stores = await prisma.store.findMany({ orderBy: { sortOrder: "asc" } });
-  const bundles = await Promise.all(stores.map((s) => getMonthlyBundle(s.id, yearMonth)));
+  const bundleByStore = await getMonthlyBundlesForStores(stores, yearMonth);
+  const bundles = stores.map((s) => bundleByStore.get(s.id)!);
 
   const rows: HqStoreRow[] = bundles.map((b) => ({
     storeId: b.store.id,
