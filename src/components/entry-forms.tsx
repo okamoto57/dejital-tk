@@ -770,8 +770,9 @@ export function InventoryForm({
 
   const beginNum = Number(begin) || 0;
   const endNum = Number(end) || 0;
-  const totalFoodCost = purchaseFoodCost + pettyCashFoodSum + beginNum - endNum;
-  const baseF = actualSales > 0 ? (purchaseFoodCost / actualSales) * 100 : 0;
+  const baseFoodCost = purchaseFoodCost + pettyCashFoodSum;
+  const totalFoodCost = baseFoodCost + beginNum - endNum;
+  const baseF = actualSales > 0 ? (baseFoodCost / actualSales) * 100 : 0;
   const afterF = actualSales > 0 ? (totalFoodCost / actualSales) * 100 : 0;
 
   async function save() {
@@ -820,7 +821,7 @@ export function InventoryForm({
         <div>
           <div className={`text-xs ${theme.subText}`}>原価(仕入ベース)</div>
           <div className="text-lg font-black" style={{ color: BRAND.blue }}>
-            {yen(purchaseFoodCost)}
+            {yen(baseFoodCost)}
             <span className="ml-1 text-xs font-semibold">({baseF.toFixed(1)}% ・ 目標{targetF.toFixed(0)}%)</span>
           </div>
         </div>

@@ -32,6 +32,7 @@ export interface DashboardViewProps {
   laborBudgetAchieve: number;
   flMetrics: {
     totalFoodCost: number;
+    baseFoodCost: number;
     actualF: number;
     baseF: number;
     actualL: number;
@@ -122,11 +123,11 @@ export function DashboardView(props: DashboardViewProps) {
           value={pct(flMetrics.actualL)}
           sub={
             <span>
-              目標 {pct(targetL, 0)}
+              {yen(monthlyTotals.laborCost)} ・ 目標 {pct(targetL, 0)}
               {monthlyTotals.laborBudget > 0 && (
                 <>
                   {" "}
-                  ・ 予算対比 <b>{pct(laborBudgetAchieve)}</b>
+                  ・ 予算 {yen(monthlyTotals.laborBudget)}(達成率 <b>{pct(laborBudgetAchieve)}</b>)
                 </>
               )}
             </span>
@@ -150,7 +151,7 @@ export function DashboardView(props: DashboardViewProps) {
           value={pct(flMetrics.baseF)}
           sub={
             <span>
-              {yen(monthlyTotals.foodCost)} ・ 目標 {pct(targetF, 0)}(棚卸調整・小口食材費を含まない仕入額のみ)
+              {yen(flMetrics.baseFoodCost)} ・ 目標 {pct(targetF, 0)}(仕入+小口食材費、棚卸調整前)
             </span>
           }
           badge={<FlaroBadge k="F" />}
@@ -162,7 +163,7 @@ export function DashboardView(props: DashboardViewProps) {
           value={pct(flMetrics.actualF)}
           sub={
             <span>
-              {yen(flMetrics.totalFoodCost)} ・ 小口食材費+棚卸調整 <b style={{ color: BRAND.alert }}>{flMetrics.fDelta >= 0 ? "+" : ""}{pct(flMetrics.fDelta, 2)}</b>
+              {yen(flMetrics.totalFoodCost)} ・ 棚卸調整 <b style={{ color: BRAND.alert }}>{flMetrics.fDelta >= 0 ? "+" : ""}{pct(flMetrics.fDelta, 2)}</b>
             </span>
           }
           badge={<FlaroBadge k="F" />}

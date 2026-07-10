@@ -55,6 +55,7 @@ export interface FlInput {
 
 export interface FlMetrics {
   totalFoodCost: number;
+  baseFoodCost: number;
   actualF: number;
   baseF: number;
   actualL: number;
@@ -76,15 +77,19 @@ export function computeFlMetrics(input: FlInput): FlMetrics {
     targetL: _targetL,
   } = input;
 
-  const totalFoodCost = foodCost + pettyCashFoodSum + beginInventory - endInventory;
+  // "Base" (仕入ベース) cost is purchases plus petty-cash food spend, before
+  // the physical inventory-count adjustment; "total" additionally applies
+  // that adjustment once the month's inventory is counted.
+  const baseFoodCost = foodCost + pettyCashFoodSum;
+  const totalFoodCost = baseFoodCost + beginInventory - endInventory;
   const actualF = actualSales > 0 ? (totalFoodCost / actualSales) * 100 : 0;
-  const baseF = actualSales > 0 ? (foodCost / actualSales) * 100 : 0;
+  const baseF = actualSales > 0 ? (baseFoodCost / actualSales) * 100 : 0;
   const actualL = actualSales > 0 ? (laborCost / actualSales) * 100 : 0;
   const fl = actualF + actualL;
   const budgetAchieve = budgetSales > 0 ? (actualSales / budgetSales) * 100 : 0;
   const fDelta = actualF - baseF;
 
-  return { totalFoodCost, actualF, baseF, actualL, fl, budgetAchieve, fDelta };
+  return { totalFoodCost, baseFoodCost, actualF, baseF, actualL, fl, budgetAchieve, fDelta };
 }
 
 export function isFlAlert(metrics: FlMetrics, targetF: number, targetL: number): boolean {

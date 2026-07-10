@@ -43,14 +43,17 @@ describe("computeFlMetrics", () => {
       targetL: 25,
     });
 
-    // totalFoodCost = 250000 + 20000 + 50000 - 40000 = 280000
+    // baseFoodCost (仕入ベース, includes petty cash) = 250000 + 20000 = 270000
+    // totalFoodCost (棚卸調整後) = 270000 + 50000 - 40000 = 280000
+    expect(metrics.baseFoodCost).toBe(270_000);
     expect(metrics.totalFoodCost).toBe(280_000);
     expect(metrics.actualF).toBeCloseTo(28, 5);
-    expect(metrics.baseF).toBeCloseTo(25, 5);
+    expect(metrics.baseF).toBeCloseTo(27, 5);
     expect(metrics.actualL).toBeCloseTo(26, 5);
     expect(metrics.fl).toBeCloseTo(54, 5);
     expect(metrics.budgetAchieve).toBeCloseTo((1_000_000 / 1_100_000) * 100, 5);
-    expect(metrics.fDelta).toBeCloseTo(3, 5);
+    // fDelta is now purely the inventory-count adjustment: (50000-40000)/1000000*100 = 1
+    expect(metrics.fDelta).toBeCloseTo(1, 5);
   });
 
   it("returns zeros when sales is zero, without dividing by zero", () => {
