@@ -1,7 +1,8 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, ArrowUp, ArrowDown } from "lucide-react";
 import { BRAND } from "@/lib/theme";
 import { yen, man, pct } from "@/lib/format";
 import { Card } from "./ui";
@@ -21,9 +22,45 @@ export interface HqStoreRow {
   flAlert: boolean;
 }
 
+const SORT_COLUMNS = {
+  actualSales: "売上実績",
+  budgetAchieve: "予算達成率",
+  actualF: "F率",
+  actualL: "L率",
+  fl: "FL率",
+} as const;
+type SortKey = keyof typeof SORT_COLUMNS;
+
 export function HqCompareView({ rows, yearMonth }: { rows: HqStoreRow[]; yearMonth: string }) {
   const theme = useAppTheme();
-  const sorted = [...rows].sort((a, b) => b.fl - a.fl);
+  const [sortKey, setSortKey] = useState<SortKey>("fl");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  const sorted = useMemo(() => {
+    const s = [...rows].sort((a, b) => a[sortKey] - b[sortKey]);
+    return sortDir === "desc" ? s.reverse() : s;
+  }, [rows, sortKey, sortDir]);
+
+  function toggleSort(key: SortKey) {
+    if (key === sortKey) {
+      setSortDir((d) => (d === "desc" ? "asc" : "desc"));
+    } else {
+      setSortKey(key);
+      setSortDir("desc");
+    }
+  }
+
+  function SortHeader({ column, className }: { column: SortKey; className: string }) {
+    const active = column === sortKey;
+    return (
+      <th className={className}>
+        <button onClick={() => toggleSort(column)} className="inline-flex items-center gap-1 hover:text-slate-800">
+          {SORT_COLUMNS[column]}
+          {active ? sortDir === "desc" ? <ArrowDown size={12} /> : <ArrowUp size={12} /> : null}
+        </button>
+      </th>
+    );
+  }
 
   const totalSales = rows.reduce((a, r) => a + r.actualSales, 0);
   const totalBudget = rows.reduce((a, r) => a + r.budgetSales, 0);
@@ -51,18 +88,18 @@ export function HqCompareView({ rows, yearMonth }: { rows: HqStoreRow[]; yearMon
         </Card>
       </div>
 
-      <Card title="全店舗 FL比率比較(FL率が高い順)">
+      <Card title={`全店舗 FL比率比較(${SORT_COLUMNS[sortKey]}が${sortDir === "desc" ? "高い" : "低い"}順)`}>
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
               <tr className={`border-b text-left ${theme.subText}`} style={{ borderColor: theme.dark ? "#1E293B" : "#E2E8F0" }}>
                 <th className="py-2 pr-2 font-semibold">店舗名</th>
                 <th className="py-2 pr-2 font-semibold">業態</th>
-                <th className="py-2 pr-2 text-right font-semibold">売上実績</th>
-                <th className="py-2 pr-2 text-right font-semibold">予算達成率</th>
-                <th className="py-2 pr-2 text-right font-semibold">F率</th>
-                <th className="py-2 pr-2 text-right font-semibold">L率</th>
-                <th className="py-2 pr-2 text-right font-semibold">FL率</th>
+                <SortHeader column="actualSales" className="py-2 pr-2 text-right font-semibold" />
+                <SortHeader column="budgetAchieve" className="py-2 pr-2 text-right font-semibold" />
+                <SortHeader column="actualF" className="py-2 pr-2 text-right font-semibold" />
+                <SortHeader column="actualL" className="py-2 pr-2 text-right font-semibold" />
+                <SortHeader column="fl" className="py-2 pr-2 text-right font-semibold" />
                 <th className="py-2 text-right font-semibold">判定</th>
               </tr>
             </thead>
