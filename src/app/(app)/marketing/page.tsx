@@ -37,6 +37,7 @@ export default async function MarketingPage({
 
   return (
     <MarketingView
+      key={`${storeId}-${yearMonth}`}
       gourmet={gourmet}
       sns={sns}
       google={googleRep ? { ...googleRep, ...meo } : null}

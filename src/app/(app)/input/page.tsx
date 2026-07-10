@@ -32,6 +32,7 @@ export default async function InputPage({
 
   return (
     <DataEntryView
+      key={`${storeId}-${yearMonth}`}
       storeId={storeId}
       yearMonth={yearMonth}
       dailyRows={dailyRows}

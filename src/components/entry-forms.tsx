@@ -110,43 +110,33 @@ export function DailyRecordForm({ storeId, yearMonth }: { storeId: string; yearM
   );
 }
 
-const BULK_DAILY_ROW_COUNT = 10;
 const BULK_DAILY_COLUMNS = ["actualSales", "foodCost", "laborCost", "customers"] as const;
 type BulkDailyField = (typeof BULK_DAILY_COLUMNS)[number];
-const BULK_DAILY_DOW = ["日", "月", "火", "水", "木", "金", "土"];
+type BulkDailyDraft = Record<BulkDailyField, string>;
 
-function isoDatePlusDays(startIso: string, offset: number) {
-  const [y, m, d] = startIso.split("-").map(Number);
-  const dt = new Date(Date.UTC(y, m - 1, d + offset));
-  return dt.toISOString().slice(0, 10);
-}
-
-export function BulkDailyRecordForm({ storeId, yearMonth }: { storeId: string; yearMonth: string }) {
+export function BulkDailyRecordForm({ storeId, yearMonth, rows }: { storeId: string; yearMonth: string; rows: DailyRow[] }) {
   const theme = useAppTheme();
   const inputCls = useInputCls();
   const router = useRouter();
-  const today = new Date().toISOString().slice(0, 10);
-  const [startDate, setStartDate] = useState(today.startsWith(yearMonth) ? today : `${yearMonth}-01`);
-  const [rows, setRows] = useState<Record<BulkDailyField, string>[]>(() =>
-    Array.from({ length: BULK_DAILY_ROW_COUNT }, () => ({ actualSales: "", foodCost: "", laborCost: "", customers: "" }))
-  );
+  const [draft, setDraft] = useState<Record<string, BulkDailyDraft>>(() => {
+    const m: Record<string, BulkDailyDraft> = {};
+    for (const r of rows) {
+      m[r.isoDate] = {
+        actualSales: r.actualSales != null ? String(r.actualSales) : "",
+        foodCost: r.foodCost != null ? String(r.foodCost) : "",
+        laborCost: r.laborCost != null ? String(r.laborCost) : "",
+        customers: r.customers != null ? String(r.customers) : "",
+      };
+    }
+    return m;
+  });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
-  const dates = Array.from({ length: BULK_DAILY_ROW_COUNT }, (_, i) => isoDatePlusDays(startDate, i));
-
-  function setCell(rowIndex: number, field: BulkDailyField, value: string) {
+  function setCell(isoDate: string, field: BulkDailyField, value: string) {
     setSaved(false);
-    setRows((prev) => {
-      const next = [...prev];
-      next[rowIndex] = { ...next[rowIndex], [field]: value };
-      return next;
-    });
-  }
-
-  function resetGrid() {
-    setRows(Array.from({ length: BULK_DAILY_ROW_COUNT }, () => ({ actualSales: "", foodCost: "", laborCost: "", customers: "" })));
+    setDraft((prev) => ({ ...prev, [isoDate]: { ...prev[isoDate], [field]: value } }));
   }
 
   // Lets a block copied from Excel (tab-separated columns, newline-separated
@@ -156,17 +146,20 @@ export function BulkDailyRecordForm({ storeId, yearMonth }: { storeId: string; y
     const grid = parsePastedGrid(e.clipboardData.getData("text"));
     if (!grid) return;
     e.preventDefault();
+    setSaved(false);
 
-    setRows((prev) => {
-      const next = prev.map((r) => ({ ...r }));
+    setDraft((prev) => {
+      const next = { ...prev };
       grid.forEach((cells, rOffset) => {
-        const targetRow = rowIndex + rOffset;
-        if (targetRow >= next.length) return;
+        const targetRow = rows[rowIndex + rOffset];
+        if (!targetRow) return;
+        const current = { ...next[targetRow.isoDate] };
         cells.forEach((cellText, cOffset) => {
-          const targetCol = colIndex + cOffset;
-          if (targetCol >= BULK_DAILY_COLUMNS.length) return;
-          next[targetRow][BULK_DAILY_COLUMNS[targetCol]] = cellText;
+          const targetCol = BULK_DAILY_COLUMNS[colIndex + cOffset];
+          if (!targetCol) return;
+          current[targetCol] = cellText;
         });
+        next[targetRow.isoDate] = current;
       });
       return next;
     });
@@ -177,10 +170,10 @@ export function BulkDailyRecordForm({ storeId, yearMonth }: { storeId: string; y
     setError(null);
     setSaved(false);
     try {
-      const days = dates
-        .map((date, i) => {
-          const row = rows[i];
-          const day: Record<string, unknown> = { date };
+      const days = rows
+        .map((r) => {
+          const row = draft[r.isoDate];
+          const day: Record<string, unknown> = { date: r.isoDate };
           let hasValue = false;
           for (const field of BULK_DAILY_COLUMNS) {
             if (row[field] !== "") {
@@ -205,7 +198,6 @@ export function BulkDailyRecordForm({ storeId, yearMonth }: { storeId: string; y
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error ?? "保存に失敗しました");
       }
-      resetGrid();
       setSaved(true);
       router.refresh();
     } catch (e) {
@@ -217,7 +209,7 @@ export function BulkDailyRecordForm({ storeId, yearMonth }: { storeId: string; y
 
   return (
     <Card
-      title={`日別実績を${BULK_DAILY_ROW_COUNT}日分まとめて入力`}
+      title={`日別実績を一括入力(${yearMonth}・全${rows.length}日)`}
       right={
         <button
           onClick={saveAll}
@@ -225,23 +217,18 @@ export function BulkDailyRecordForm({ storeId, yearMonth }: { storeId: string; y
           className="flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold text-white transition active:scale-95 disabled:opacity-60"
           style={{ backgroundColor: BRAND.blue }}
         >
-          <Save size={14} /> {submitting ? "保存中..." : "まとめて保存"}
+          <Save size={14} /> {submitting ? "保存中..." : "全日まとめて保存"}
         </button>
       }
     >
-      <div className="mb-3 flex flex-wrap items-center gap-3">
-        <Field label="開始日">
-          <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className={inputCls} />
-        </Field>
-        <p className={`text-xs ${theme.subText}`}>
-          Excelなどの表からコピーした数値を、いずれかのセルに貼り付けると自動的に複数マスへ展開されます。空欄の項目は保存されません。
-        </p>
-      </div>
-      <div className="overflow-x-auto">
+      <p className={`mb-3 text-xs ${theme.subText}`}>
+        この画面を1回開いた状態で、当月すべての日の実績をまとめて入力し、最後に1回「全日まとめて保存」を押してください。Excelなどの表からコピーした数値を、いずれかのセルに貼り付けると自動的に複数マスへ展開されます。空欄の項目は保存されません。
+      </p>
+      <div className="max-h-80 overflow-y-auto rounded-lg border" style={{ borderColor: theme.dark ? "#1E293B" : "#E2E8F0" }}>
         <table className="w-full text-xs">
-          <thead>
+          <thead className="sticky top-0" style={{ backgroundColor: theme.dark ? "#0F1A2E" : "#F8FAFC" }}>
             <tr className={`border-b text-left ${theme.subText}`} style={{ borderColor: theme.dark ? "#1E293B" : "#E2E8F0" }}>
-              <th className="py-1.5 pr-2 font-semibold">日付</th>
+              <th className="py-1.5 pl-2 pr-2 font-semibold">日付</th>
               <th className="py-1.5 pr-2 font-semibold">売上実績(円)</th>
               <th className="py-1.5 pr-2 font-semibold">仕入・食材原価(円)</th>
               <th className="py-1.5 pr-2 font-semibold">人件費(円)</th>
@@ -249,28 +236,25 @@ export function BulkDailyRecordForm({ storeId, yearMonth }: { storeId: string; y
             </tr>
           </thead>
           <tbody>
-            {dates.map((date, rowIndex) => {
-              const dow = BULK_DAILY_DOW[new Date(`${date}T00:00:00Z`).getUTCDay()];
-              return (
-                <tr key={date} className="border-b" style={{ borderColor: theme.dark ? "#111C2E" : "#F1F5F9" }}>
-                  <td className="py-1 pr-2 whitespace-nowrap font-semibold">
-                    {date.slice(5)} <span className={theme.subText}>({dow})</span>
+            {rows.map((r, rowIndex) => (
+              <tr key={r.isoDate} className="border-b" style={{ borderColor: theme.dark ? "#111C2E" : "#F1F5F9" }}>
+                <td className="py-1 pl-2 pr-2 whitespace-nowrap font-semibold">
+                  {r.dateLabel} <span className={theme.subText}>({r.dowLabel})</span>
+                </td>
+                {BULK_DAILY_COLUMNS.map((field, colIndex) => (
+                  <td key={field} className="py-1 pr-2">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={draft[r.isoDate]?.[field] ?? ""}
+                      onChange={(e) => setCell(r.isoDate, field, e.target.value)}
+                      onPaste={(e) => handlePaste(e, rowIndex, colIndex)}
+                      className={inputCls}
+                    />
                   </td>
-                  {BULK_DAILY_COLUMNS.map((field, colIndex) => (
-                    <td key={field} className="py-1 pr-2">
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        value={rows[rowIndex][field]}
-                        onChange={(e) => setCell(rowIndex, field, e.target.value)}
-                        onPaste={(e) => handlePaste(e, rowIndex, colIndex)}
-                        className={inputCls}
-                      />
-                    </td>
-                  ))}
-                </tr>
-              );
-            })}
+                ))}
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>

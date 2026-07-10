@@ -45,7 +45,7 @@ export function DataEntryView({
     <div className="space-y-4">
       <DailyRecordForm storeId={storeId} yearMonth={yearMonth} />
 
-      <BulkDailyRecordForm storeId={storeId} yearMonth={yearMonth} />
+      <BulkDailyRecordForm storeId={storeId} yearMonth={yearMonth} rows={dailyRows} />
 
       <BulkBudgetForm storeId={storeId} yearMonth={yearMonth} rows={dailyRows} />
 

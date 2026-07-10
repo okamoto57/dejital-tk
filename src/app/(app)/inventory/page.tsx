@@ -26,6 +26,7 @@ export default async function InventoryPage({
 
   return (
     <InventoryView
+      key={`${storeId}-${yearMonth}`}
       storeId={storeId}
       yearMonth={yearMonth}
       initialBegin={bundle.inventorySnapshot?.beginInventory ?? null}
