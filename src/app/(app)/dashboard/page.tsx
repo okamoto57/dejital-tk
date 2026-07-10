@@ -39,6 +39,7 @@ export default async function DashboardPage({
       radarData={bundle.radarData}
       radarScore={bundle.radarScore}
       pettyCashFoodSum={bundle.pettyCashAgg.foodSum}
+      prCampaign={bundle.prCampaign}
       inventory={bundle.inventorySnapshot}
       laborBudgetAchieve={bundle.laborBudgetAchieve}
       googleScore={bundle.googleReputation?.score ?? null}

@@ -37,6 +37,7 @@ export default async function InputPage({
       yearMonth={yearMonth}
       dailyRows={dailyRows}
       gourmet={gourmet}
+      prCampaign={bundle.prCampaign}
       google={googleRep ? { ...googleRep, ...meo } : null}
       tabelog={tabelogRep}
       dazhong={bundle.store.name && DAZHONG_STORES.includes(bundle.store.name) ? dazhongRep : undefined}

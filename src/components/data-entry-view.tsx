@@ -2,8 +2,8 @@
 
 import { Camera, Video, MessageCircle } from "lucide-react";
 import type { DailyRow } from "@/lib/types";
-import type { GourmetRow, ReputationInitial, PreviousScoreRef } from "./entry-forms";
-import { DailyRecordForm, BulkDailyRecordForm, BulkBudgetForm, GourmetMediaForm, ReputationForm, SnsEntryForm } from "./entry-forms";
+import type { GourmetRow, ReputationInitial, PreviousScoreRef, PrCampaignInitial } from "./entry-forms";
+import { DailyRecordForm, BulkDailyRecordForm, BulkBudgetForm, GourmetMediaForm, PrCampaignForm, ReputationForm, SnsEntryForm } from "./entry-forms";
 
 export interface SnsInitialData {
   instagram: Record<string, number>;
@@ -25,6 +25,7 @@ export function DataEntryView({
   yearMonth,
   dailyRows,
   gourmet,
+  prCampaign,
   google,
   tabelog,
   dazhong,
@@ -35,6 +36,7 @@ export function DataEntryView({
   yearMonth: string;
   dailyRows: DailyRow[];
   gourmet: GourmetRow[];
+  prCampaign: PrCampaignInitial;
   google: ReputationInitial | null;
   tabelog: ReputationInitial | null;
   dazhong?: ReputationInitial | null;
@@ -50,6 +52,8 @@ export function DataEntryView({
       <BulkBudgetForm storeId={storeId} yearMonth={yearMonth} rows={dailyRows} />
 
       <GourmetMediaForm storeId={storeId} yearMonth={yearMonth} rows={gourmet} />
+
+      <PrCampaignForm storeId={storeId} yearMonth={yearMonth} initial={prCampaign} />
 
       <div className={`grid grid-cols-1 gap-4 ${dazhong !== undefined ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
         <ReputationForm

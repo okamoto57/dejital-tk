@@ -50,6 +50,7 @@ model Store {
   gourmetMedia       GourmetMediaRecord[]
   snsMetrics         SnsMetric[]
   reputationSnapshots ReputationSnapshot[]
+  prCampaigns        PrCampaignRecord[]
 }
 
 model User {
@@ -140,6 +141,20 @@ model SnsMetric {
   metrics   String // JSON-encoded platform-specific fields
 
   @@unique([storeId, yearMonth, platform])
+}
+
+/** PR代理店・インフルエンサー等のPR案件経由の来店。組数分の来客・原価/人件費が
+ * 発生する一方で通常の客単価収入がないため、受け取ったPR提供費をF/L比率算出上の
+ * 売上として計上し、比率が実態より悪化して見えないようにする。 */
+model PrCampaignRecord {
+  id        String @id @default(cuid())
+  storeId   String
+  store     Store  @relation(fields: [storeId], references: [id])
+  yearMonth String
+  groups    Int    @default(0)
+  fee       Float  @default(0)
+
+  @@unique([storeId, yearMonth])
 }
 
 model ReputationSnapshot {

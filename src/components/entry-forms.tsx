@@ -515,6 +515,92 @@ export function GourmetMediaForm({ storeId, yearMonth, rows }: { storeId: string
   );
 }
 
+export interface PrCampaignInitial {
+  groups: number;
+  fee: number;
+}
+
+export function PrCampaignForm({
+  storeId,
+  yearMonth,
+  initial,
+}: {
+  storeId: string;
+  yearMonth: string;
+  initial: PrCampaignInitial;
+}) {
+  const theme = useAppTheme();
+  const inputCls = useInputCls();
+  const router = useRouter();
+  const [groups, setGroups] = useState(String(initial.groups || ""));
+  const [fee, setFee] = useState(String(initial.fee || ""));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  async function save() {
+    setSaving(true);
+    setError(null);
+    setSaved(false);
+    try {
+      const res = await fetch("/api/pr-campaign", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          storeId,
+          yearMonth,
+          groups: Number(cleanNumeric(groups)) || 0,
+          fee: Number(cleanNumeric(fee)) || 0,
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? "保存に失敗しました");
+      }
+      setSaved(true);
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "保存に失敗しました");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Card title="PR案件を入力">
+      <p className={`mb-3 text-xs ${theme.subText}`}>
+        PR代理店・インフルエンサー等の案件で来店した組数と、その対価として受け取ったPR提供費を入力してください。PR提供費は原価・人件費が発生する一方で通常の売上が立たないため、F比率・L比率の算出上は売上に加算して計上します(売上実績やダッシュボードの「当月売上」自体には影響しません)。
+      </p>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <Field label="組数">
+          <input value={groups} onChange={(e) => setGroups(e.target.value)} type="number" placeholder="0" className={inputCls} />
+        </Field>
+        <Field label="PR提供費(円)">
+          <input value={fee} onChange={(e) => setFee(e.target.value)} type="number" placeholder="0" className={inputCls} />
+        </Field>
+      </div>
+      {error && (
+        <p className="mt-2 text-xs font-semibold" style={{ color: BRAND.alert }}>
+          {error}
+        </p>
+      )}
+      {saved && !error && (
+        <p className="mt-2 text-xs font-semibold" style={{ color: BRAND.green }}>
+          保存しました。
+        </p>
+      )}
+      <button
+        onClick={save}
+        disabled={saving}
+        className="mt-3 rounded-xl px-4 py-2 text-xs font-bold text-white disabled:opacity-60"
+        style={{ backgroundColor: BRAND.blue }}
+      >
+        {saving ? "保存中..." : "保存"}
+      </button>
+    </Card>
+  );
+}
+
 export interface ReputationInitial {
   score: number;
   reviews: number;

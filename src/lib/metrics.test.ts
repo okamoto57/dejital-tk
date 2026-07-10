@@ -39,6 +39,7 @@ describe("computeFlMetrics", () => {
       beginInventory: 50_000,
       endInventory: 40_000,
       pettyCashFoodSum: 20_000,
+      prFee: 0,
       targetF: 30,
       targetL: 25,
     });
@@ -65,6 +66,7 @@ describe("computeFlMetrics", () => {
       beginInventory: 0,
       endInventory: 0,
       pettyCashFoodSum: 0,
+      prFee: 0,
       targetF: 30,
       targetL: 25,
     });
@@ -73,6 +75,28 @@ describe("computeFlMetrics", () => {
     expect(metrics.actualL).toBe(0);
     expect(metrics.fl).toBe(0);
     expect(metrics.budgetAchieve).toBe(0);
+  });
+
+  it("adds PR-campaign fee to the F/L sales base but not to budgetAchieve", () => {
+    const metrics = computeFlMetrics({
+      actualSales: 800_000,
+      budgetSales: 1_000_000,
+      foodCost: 240_000,
+      laborCost: 200_000,
+      beginInventory: 0,
+      endInventory: 0,
+      pettyCashFoodSum: 0,
+      prFee: 200_000,
+      targetF: 30,
+      targetL: 25,
+    });
+
+    // flSalesBase = 800000 + 200000 = 1000000
+    expect(metrics.flSalesBase).toBe(1_000_000);
+    expect(metrics.actualF).toBeCloseTo(24, 5); // 240000 / 1000000
+    expect(metrics.actualL).toBeCloseTo(20, 5); // 200000 / 1000000
+    // budgetAchieve stays based on raw actualSales, unaffected by prFee
+    expect(metrics.budgetAchieve).toBeCloseTo(80, 5);
   });
 });
 
@@ -86,6 +110,7 @@ describe("isFlAlert", () => {
       beginInventory: 0,
       endInventory: 0,
       pettyCashFoodSum: 0,
+      prFee: 0,
       targetF: 30,
       targetL: 25,
     });
@@ -101,6 +126,7 @@ describe("isFlAlert", () => {
       beginInventory: 0,
       endInventory: 0,
       pettyCashFoodSum: 0,
+      prFee: 0,
       targetF: 30,
       targetL: 25,
     });

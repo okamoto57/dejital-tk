@@ -33,6 +33,7 @@ export interface DashboardViewProps {
   flMetrics: {
     totalFoodCost: number;
     baseFoodCost: number;
+    flSalesBase: number;
     actualF: number;
     baseF: number;
     actualL: number;
@@ -44,6 +45,7 @@ export interface DashboardViewProps {
   radarData: RadarAxis[];
   radarScore: number;
   pettyCashFoodSum: number;
+  prCampaign: { groups: number; fee: number };
   inventory: { beginInventory: number; endInventory: number } | null;
   googleScore: number | null;
   googleReviews: number | null;
@@ -68,6 +70,7 @@ export function DashboardView(props: DashboardViewProps) {
     radarData,
     radarScore,
     pettyCashFoodSum,
+    prCampaign,
     inventory,
     googleScore,
     googleReviews,
@@ -130,6 +133,7 @@ export function DashboardView(props: DashboardViewProps) {
                   ・ 予算 {yen(monthlyTotals.laborBudget)}(達成率 <b>{pct(laborBudgetAchieve)}</b>)
                 </>
               )}
+              {prCampaign.fee > 0 && <> ・ PR提供費{yen(prCampaign.fee)}を売上に加算して算出</>}
             </span>
           }
           badge={<FlaroBadge k="L" />}
@@ -152,6 +156,7 @@ export function DashboardView(props: DashboardViewProps) {
           sub={
             <span>
               {yen(flMetrics.baseFoodCost)} ・ 目標 {pct(targetF, 0)}(仕入+小口食材費、棚卸調整前)
+              {prCampaign.fee > 0 && <> ・ PR提供費{yen(prCampaign.fee)}を売上に加算</>}
             </span>
           }
           badge={<FlaroBadge k="F" />}
@@ -251,6 +256,7 @@ export function DashboardView(props: DashboardViewProps) {
           value={inventory ? yen(inventory.beginInventory - inventory.endInventory) : "未入力"}
         />
         <MiniKpi label="人件費(合計)" value={yen(monthlyTotals.laborCost)} />
+        <MiniKpi label="PR提供費(F・L比率の売上に加算)" value={prCampaign.fee > 0 ? `${yen(prCampaign.fee)}(${prCampaign.groups}組)` : "—"} />
       </div>
 
       <Card title="外部レビュースコア">

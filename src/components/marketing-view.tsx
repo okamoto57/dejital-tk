@@ -11,7 +11,7 @@ import {
   Tooltip,
   Legend,
 } from "recharts";
-import { Coins, TrendingUp, Sparkles, Camera, Video, MessageCircle, ArrowUpRight, ArrowUpRight as GrowthIcon } from "lucide-react";
+import { Coins, TrendingUp, Sparkles, Camera, Video, MessageCircle, ArrowUpRight, ArrowUpRight as GrowthIcon, Megaphone } from "lucide-react";
 import { BRAND } from "@/lib/theme";
 import { yen } from "@/lib/format";
 import type { AdviceItem } from "@/lib/metrics";
@@ -44,8 +44,14 @@ export interface GoogleReputationData extends ReputationData {
   meoTotal: number | null;
 }
 
+export interface PrCampaignData {
+  groups: number;
+  fee: number;
+}
+
 export function MarketingView({
   gourmet,
+  prCampaign,
   sns,
   google,
   tabelog,
@@ -53,6 +59,7 @@ export function MarketingView({
   advice,
 }: {
   gourmet: GourmetRow[];
+  prCampaign: PrCampaignData;
   sns: SnsData;
   google: GoogleReputationData | null;
   tabelog: ReputationData | null;
@@ -127,6 +134,29 @@ export function MarketingView({
             </table>
           </div>
         </div>
+      </Card>
+
+      <Card title="PR案件">
+        <div className="flex flex-wrap items-center gap-6">
+          <div className="flex items-center gap-3">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg text-white" style={{ backgroundColor: BRAND.blue }}>
+              <Megaphone size={16} />
+            </span>
+            <div>
+              <div className={`text-xs ${theme.subText}`}>組数</div>
+              <div className="text-xl font-black">{prCampaign.groups.toLocaleString()} 組</div>
+            </div>
+          </div>
+          <div>
+            <div className={`text-xs ${theme.subText}`}>PR提供費</div>
+            <div className="text-xl font-black" style={{ color: BRAND.green }}>
+              {yen(prCampaign.fee)}
+            </div>
+          </div>
+        </div>
+        <p className={`mt-3 text-xs ${theme.subText}`}>
+          PR代理店・インフルエンサー等の案件経由の来店組数と、その対価として受け取ったPR提供費です。PR提供費はF比率・L比率の算出上、売上に加算して計上しています。
+        </p>
       </Card>
 
       <div className={`grid grid-cols-1 gap-4 ${dazhong !== undefined ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>

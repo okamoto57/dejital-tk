@@ -1,4 +1,4 @@
-import type { DailyRecord, InventorySnapshot, PettyCashEntry, ReputationSnapshot, Store } from "@prisma/client";
+import type { DailyRecord, InventorySnapshot, PettyCashEntry, PrCampaignRecord, ReputationSnapshot, Store } from "@prisma/client";
 import { prisma } from "./prisma";
 import { aggregatePettyCash, computeFlMetrics, isFlAlert, buildRadarData, radarScore, budgetAchievePct, previousYearMonth } from "./metrics";
 
@@ -16,12 +16,13 @@ interface RawBundleInputs {
   pettyCashOpening: number;
   googleRep: ReputationSnapshot | null;
   tabelogRep: ReputationSnapshot | null;
+  prCampaign: PrCampaignRecord | null;
 }
 
 /** Pure aggregation shared by the single-store and batched fetchers below:
  * turns already-fetched rows for one store into the computed FL/radar bundle. */
 function buildBundle(store: Store, raw: RawBundleInputs) {
-  const { dailyRecords, inventorySnapshot, pettyCashEntries, pettyCashOpening, googleRep, tabelogRep } = raw;
+  const { dailyRecords, inventorySnapshot, pettyCashEntries, pettyCashOpening, googleRep, tabelogRep, prCampaign } = raw;
 
   const pettyCashAgg = aggregatePettyCash(
     pettyCashEntries.map((e) => ({
@@ -49,6 +50,7 @@ function buildBundle(store: Store, raw: RawBundleInputs) {
     beginInventory: inventorySnapshot?.beginInventory ?? 0,
     endInventory: inventorySnapshot?.endInventory ?? 0,
     pettyCashFoodSum: pettyCashAgg.foodSum,
+    prFee: prCampaign?.fee ?? 0,
     targetF: store.targetF,
     targetL: store.targetL,
   });
@@ -82,13 +84,14 @@ function buildBundle(store: Store, raw: RawBundleInputs) {
     radarScore: radarScore(radarData),
     googleReputation: googleRep,
     tabelogReputation: tabelogRep,
+    prCampaign: { groups: prCampaign?.groups ?? 0, fee: prCampaign?.fee ?? 0 },
   };
 }
 
 export async function getMonthlyBundle(storeId: string, yearMonth: string) {
   const { start, end } = monthRange(yearMonth);
 
-  const [store, dailyRecords, inventorySnapshot, pettyCashEntries, pettyCashOpening, googleRep, tabelogRep] =
+  const [store, dailyRecords, inventorySnapshot, pettyCashEntries, pettyCashOpening, googleRep, tabelogRep, prCampaign] =
     await Promise.all([
       prisma.store.findUniqueOrThrow({ where: { id: storeId } }),
       prisma.dailyRecord.findMany({
@@ -107,6 +110,7 @@ export async function getMonthlyBundle(storeId: string, yearMonth: string) {
       prisma.reputationSnapshot.findUnique({
         where: { storeId_yearMonth_source: { storeId, yearMonth, source: "TABELOG" } },
       }),
+      prisma.prCampaignRecord.findUnique({ where: { storeId_yearMonth: { storeId, yearMonth } } }),
     ]);
 
   return buildBundle(store, {
@@ -116,6 +120,7 @@ export async function getMonthlyBundle(storeId: string, yearMonth: string) {
     pettyCashOpening: pettyCashOpening?.opening ?? 0,
     googleRep,
     tabelogRep,
+    prCampaign,
   });
 }
 
@@ -127,7 +132,7 @@ export async function getMonthlyBundlesForStores(stores: Store[], yearMonth: str
   const { start, end } = monthRange(yearMonth);
   const storeIds = stores.map((s) => s.id);
 
-  const [dailyRecordsAll, inventorySnapshotsAll, pettyCashEntriesAll, pettyCashOpeningsAll, googleRepsAll, tabelogRepsAll] =
+  const [dailyRecordsAll, inventorySnapshotsAll, pettyCashEntriesAll, pettyCashOpeningsAll, googleRepsAll, tabelogRepsAll, prCampaignsAll] =
     await Promise.all([
       prisma.dailyRecord.findMany({
         where: { storeId: { in: storeIds }, date: { gte: start, lt: end } },
@@ -141,6 +146,7 @@ export async function getMonthlyBundlesForStores(stores: Store[], yearMonth: str
       prisma.pettyCashOpening.findMany({ where: { storeId: { in: storeIds }, yearMonth } }),
       prisma.reputationSnapshot.findMany({ where: { storeId: { in: storeIds }, yearMonth, source: "GOOGLE" } }),
       prisma.reputationSnapshot.findMany({ where: { storeId: { in: storeIds }, yearMonth, source: "TABELOG" } }),
+      prisma.prCampaignRecord.findMany({ where: { storeId: { in: storeIds }, yearMonth } }),
     ]);
 
   const groupByStore = <T extends { storeId: string }>(rows: T[]) => {
@@ -159,6 +165,7 @@ export async function getMonthlyBundlesForStores(stores: Store[], yearMonth: str
   const openingByStore = new Map(pettyCashOpeningsAll.map((r) => [r.storeId, r]));
   const googleByStore = new Map(googleRepsAll.map((r) => [r.storeId, r]));
   const tabelogByStore = new Map(tabelogRepsAll.map((r) => [r.storeId, r]));
+  const prCampaignByStore = new Map(prCampaignsAll.map((r) => [r.storeId, r]));
 
   const result = new Map<string, ReturnType<typeof buildBundle>>();
   for (const store of stores) {
@@ -171,6 +178,7 @@ export async function getMonthlyBundlesForStores(stores: Store[], yearMonth: str
         pettyCashOpening: openingByStore.get(store.id)?.opening ?? 0,
         googleRep: googleByStore.get(store.id) ?? null,
         tabelogRep: tabelogByStore.get(store.id) ?? null,
+        prCampaign: prCampaignByStore.get(store.id) ?? null,
       })
     );
   }

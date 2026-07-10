@@ -49,6 +49,7 @@ export interface FlInput {
   beginInventory: number;
   endInventory: number;
   pettyCashFoodSum: number;
+  prFee: number; // PR案件で受け取った提供費。実売上はないが原価・人件費は発生するため、F/L比率算出時のみ売上に加算する
   targetF: number;
   targetL: number;
 }
@@ -56,6 +57,7 @@ export interface FlInput {
 export interface FlMetrics {
   totalFoodCost: number;
   baseFoodCost: number;
+  flSalesBase: number;
   actualF: number;
   baseF: number;
   actualL: number;
@@ -73,6 +75,7 @@ export function computeFlMetrics(input: FlInput): FlMetrics {
     beginInventory,
     endInventory,
     pettyCashFoodSum,
+    prFee,
     targetF: _targetF,
     targetL: _targetL,
   } = input;
@@ -82,14 +85,18 @@ export function computeFlMetrics(input: FlInput): FlMetrics {
   // that adjustment once the month's inventory is counted.
   const baseFoodCost = foodCost + pettyCashFoodSum;
   const totalFoodCost = baseFoodCost + beginInventory - endInventory;
-  const actualF = actualSales > 0 ? (totalFoodCost / actualSales) * 100 : 0;
-  const baseF = actualSales > 0 ? (baseFoodCost / actualSales) * 100 : 0;
-  const actualL = actualSales > 0 ? (laborCost / actualSales) * 100 : 0;
+  // F/L ratios use actual sales plus PR-campaign fees as their denominator
+  // (PR-arranged parties consume food/labor without normal ticket revenue),
+  // but budgetAchieve below intentionally uses raw actualSales only.
+  const flSalesBase = actualSales + prFee;
+  const actualF = flSalesBase > 0 ? (totalFoodCost / flSalesBase) * 100 : 0;
+  const baseF = flSalesBase > 0 ? (baseFoodCost / flSalesBase) * 100 : 0;
+  const actualL = flSalesBase > 0 ? (laborCost / flSalesBase) * 100 : 0;
   const fl = actualF + actualL;
   const budgetAchieve = budgetSales > 0 ? (actualSales / budgetSales) * 100 : 0;
   const fDelta = actualF - baseF;
 
-  return { totalFoodCost, baseFoodCost, actualF, baseF, actualL, fl, budgetAchieve, fDelta };
+  return { totalFoodCost, baseFoodCost, flSalesBase, actualF, baseF, actualL, fl, budgetAchieve, fDelta };
 }
 
 export function isFlAlert(metrics: FlMetrics, targetF: number, targetL: number): boolean {

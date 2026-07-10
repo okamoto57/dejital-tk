@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import { getAccessibleStores, resolveStoreId } from "@/lib/access";
 import { yearMonthNow } from "@/lib/format";
 import { buildMarketingAdvice } from "@/lib/metrics";
@@ -24,6 +25,7 @@ export default async function MarketingPage({
 
   const yearMonth = params.month ?? yearMonthNow();
   const { gourmet, sns, googleRep, tabelogRep, dazhongRep } = await getMarketingData(storeId, yearMonth);
+  const prCampaignRecord = await prisma.prCampaignRecord.findUnique({ where: { storeId_yearMonth: { storeId, yearMonth } } });
   const meo = parseGoogleMeo(googleRep?.extra);
   const storeName = stores.find((s) => s.id === storeId)?.name;
   const tracksDazhong = storeName != null && DAZHONG_STORES.includes(storeName);
@@ -39,6 +41,7 @@ export default async function MarketingPage({
     <MarketingView
       key={`${storeId}-${yearMonth}`}
       gourmet={gourmet}
+      prCampaign={{ groups: prCampaignRecord?.groups ?? 0, fee: prCampaignRecord?.fee ?? 0 }}
       sns={sns}
       google={googleRep ? { ...googleRep, ...meo } : null}
       tabelog={tabelogRep}
