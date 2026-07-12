@@ -133,6 +133,13 @@ export function BulkDailyRecordForm({ storeId, yearMonth, rows }: { storeId: str
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [conflicts, setConflicts] = useState<string[]>([]);
+  // Snapshot of each day's updatedAt as of page load (or last successful
+  // save). Sent back on save so the server can tell whether someone else
+  // updated that same day in the meantime, instead of silently overwriting.
+  const [updatedAtMap, setUpdatedAtMap] = useState<Record<string, string | null>>(() =>
+    Object.fromEntries(rows.map((r) => [r.isoDate, r.updatedAt]))
+  );
 
   function setCell(isoDate: string, field: BulkDailyField, value: string) {
     setSaved(false);
@@ -169,11 +176,12 @@ export function BulkDailyRecordForm({ storeId, yearMonth, rows }: { storeId: str
     setSubmitting(true);
     setError(null);
     setSaved(false);
+    setConflicts([]);
     try {
       const days = rows
         .map((r) => {
           const row = draft[r.isoDate];
-          const day: Record<string, unknown> = { date: r.isoDate };
+          const day: Record<string, unknown> = { date: r.isoDate, expectedUpdatedAt: updatedAtMap[r.isoDate] ?? null };
           let hasValue = false;
           for (const field of BULK_DAILY_COLUMNS) {
             if (row[field] !== "") {
@@ -194,10 +202,17 @@ export function BulkDailyRecordForm({ storeId, yearMonth, rows }: { storeId: str
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ storeId, days }),
       });
+      const body = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
         throw new Error(body.error ?? "保存に失敗しました");
       }
+      const updatedRows = (body.updated ?? []) as { date: string; updatedAt: string }[];
+      setUpdatedAtMap((prev) => {
+        const next = { ...prev };
+        for (const u of updatedRows) next[u.date] = u.updatedAt;
+        return next;
+      });
+      setConflicts((body.conflicts ?? []) as string[]);
       setSaved(true);
       router.refresh();
     } catch (e) {
@@ -263,9 +278,16 @@ export function BulkDailyRecordForm({ storeId, yearMonth, rows }: { storeId: str
           {error}
         </p>
       )}
-      {saved && !error && (
+      {saved && !error && conflicts.length === 0 && (
         <p className="mt-2 text-xs font-semibold" style={{ color: BRAND.green }}>
           保存しました。
+        </p>
+      )}
+      {conflicts.length > 0 && (
+        <p className="mt-2 text-xs font-semibold" style={{ color: BRAND.alert }}>
+          {conflicts.length}日分は他の人が同じタイミングで更新していたため保存されませんでした(
+          {conflicts.map((d) => rows.find((r) => r.isoDate === d)?.dateLabel ?? d).join("、")}
+          )。該当日の最新の値をご確認のうえ、必要であれば入力し直して再度保存してください。
         </p>
       )}
     </Card>
@@ -284,6 +306,10 @@ export function BulkBudgetForm({ storeId, yearMonth, rows }: { storeId: string; 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [conflicts, setConflicts] = useState<string[]>([]);
+  const [updatedAtMap, setUpdatedAtMap] = useState<Record<string, string | null>>(() =>
+    Object.fromEntries(rows.map((r) => [r.isoDate, r.updatedAt]))
+  );
 
   const BUDGET_COLUMNS = ["budgetSales", "laborBudget"] as const;
 
@@ -321,21 +347,30 @@ export function BulkBudgetForm({ storeId, yearMonth, rows }: { storeId: string; 
     setSubmitting(true);
     setError(null);
     setSaved(false);
+    setConflicts([]);
     try {
       const days = rows.map((r) => ({
         date: r.isoDate,
         budgetSales: Number(cleanNumeric(draft[r.isoDate]?.budgetSales ?? "")) || 0,
         laborBudget: Number(cleanNumeric(draft[r.isoDate]?.laborBudget ?? "")) || 0,
+        expectedUpdatedAt: updatedAtMap[r.isoDate] ?? null,
       }));
       const res = await fetch("/api/daily-budgets/bulk", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ storeId, days }),
       });
+      const body = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
         throw new Error(body.error ?? "保存に失敗しました");
       }
+      const updatedRows = (body.updated ?? []) as { date: string; updatedAt: string }[];
+      setUpdatedAtMap((prev) => {
+        const next = { ...prev };
+        for (const u of updatedRows) next[u.date] = u.updatedAt;
+        return next;
+      });
+      setConflicts((body.conflicts ?? []) as string[]);
       setSaved(true);
       router.refresh();
     } catch (e) {
@@ -405,9 +440,16 @@ export function BulkBudgetForm({ storeId, yearMonth, rows }: { storeId: string; 
           {error}
         </p>
       )}
-      {saved && !error && (
+      {saved && !error && conflicts.length === 0 && (
         <p className="mt-2 text-xs font-semibold" style={{ color: BRAND.green }}>
           保存しました。
+        </p>
+      )}
+      {conflicts.length > 0 && (
+        <p className="mt-2 text-xs font-semibold" style={{ color: BRAND.alert }}>
+          {conflicts.length}日分は他の人が同じタイミングで更新していたため保存されませんでした(
+          {conflicts.map((d) => rows.find((r) => r.isoDate === d)?.dateLabel ?? d).join("、")}
+          )。該当日の最新の値をご確認のうえ、必要であれば入力し直して再度保存してください。
         </p>
       )}
     </Card>

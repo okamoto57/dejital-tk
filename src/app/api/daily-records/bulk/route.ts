@@ -8,6 +8,9 @@ interface DayInput {
   foodCost?: number;
   laborCost?: number;
   customers?: number;
+  // updatedAt the client last saw for this day (null if the day had no
+  // existing record yet). Used for optimistic-concurrency conflict detection.
+  expectedUpdatedAt?: string | null;
 }
 
 export async function POST(req: NextRequest) {
@@ -22,7 +25,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
-  const ops = [];
+  const prepared: { date: string; data: Record<string, number> }[] = [];
   for (const day of days) {
     if (!day.date) continue;
 
@@ -42,22 +45,58 @@ export async function POST(req: NextRequest) {
       data[key] = value;
     }
     if (Object.keys(data).length === 0) continue;
-
-    const date = new Date(day.date);
-    ops.push(
-      prisma.dailyRecord.upsert({
-        where: { storeId_date: { storeId, date } },
-        update: data,
-        create: { storeId, date, ...data },
-      })
-    );
+    prepared.push({ date: day.date, data });
   }
 
-  if (ops.length === 0) {
+  if (prepared.length === 0) {
     return NextResponse.json({ error: "no rows with data to save" }, { status: 400 });
   }
 
-  await prisma.$transaction(ops);
+  const expectedByDate = new Map(days.map((d) => [d.date, d.expectedUpdatedAt ?? null]));
 
-  return NextResponse.json({ ok: true, count: ops.length });
+  // Fetch every existing row for the affected dates in one query instead of
+  // one round-trip per day — 30+ sequential round-trips inside an
+  // interactive transaction was slow enough to blow Prisma's transaction
+  // timeout and 500 the whole request.
+  const existingRows = await prisma.dailyRecord.findMany({
+    where: { storeId, date: { in: prepared.map((d) => new Date(d.date)) } },
+  });
+  const existingByDate = new Map(existingRows.map((r) => [r.date.toISOString().slice(0, 10), r]));
+
+  const conflicts: string[] = [];
+  const toWrite: typeof prepared = [];
+  for (const day of prepared) {
+    const existing = existingByDate.get(day.date);
+    const currentUpdatedAt = existing ? existing.updatedAt.toISOString() : null;
+    const staleBaseline = currentUpdatedAt !== (expectedByDate.get(day.date) ?? null);
+    // A stale baseline alone isn't necessarily a real conflict — only flag
+    // it if applying our (only the fields we actually typed) write would
+    // discard a value someone else set that differs from ours.
+    const wouldChangeData =
+      !existing || Object.entries(day.data).some(([key, value]) => existing[key as keyof typeof existing] !== value);
+    if (staleBaseline && wouldChangeData) {
+      // Someone else saved this day since we loaded it — skip rather than
+      // silently overwrite their edit, and report it back to the client.
+      conflicts.push(day.date);
+      continue;
+    }
+    toWrite.push(day);
+  }
+
+  const rows =
+    toWrite.length > 0
+      ? await prisma.$transaction(
+          toWrite.map((day) =>
+            prisma.dailyRecord.upsert({
+              where: { storeId_date: { storeId, date: new Date(day.date) } },
+              update: day.data,
+              create: { storeId, date: new Date(day.date), ...day.data },
+            })
+          )
+        )
+      : [];
+
+  const updated = rows.map((row, i) => ({ date: toWrite[i].date, updatedAt: row.updatedAt.toISOString() }));
+
+  return NextResponse.json({ ok: true, count: updated.length, conflicts, updated });
 }

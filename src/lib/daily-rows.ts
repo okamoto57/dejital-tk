@@ -51,6 +51,7 @@ export function buildDailyRows(bundle: MonthlyBundle, yearMonth: string): DailyR
       fRate,
       lRate,
       flRate,
+      updatedAt: r?.updatedAt.toISOString() ?? null,
     };
   });
 }

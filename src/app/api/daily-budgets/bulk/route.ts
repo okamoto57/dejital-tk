@@ -6,6 +6,9 @@ interface DayBudgetInput {
   date: string;
   budgetSales: number;
   laborBudget: number;
+  // updatedAt the client last saw for this day (null if the day had no
+  // existing record yet). Used for optimistic-concurrency conflict detection.
+  expectedUpdatedAt?: string | null;
 }
 
 export async function POST(req: NextRequest) {
@@ -26,15 +29,47 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  await prisma.$transaction(
-    days.map((d) =>
-      prisma.dailyRecord.upsert({
-        where: { storeId_date: { storeId, date: new Date(d.date) } },
-        update: { budgetSales: d.budgetSales, laborBudget: d.laborBudget },
-        create: { storeId, date: new Date(d.date), budgetSales: d.budgetSales, laborBudget: d.laborBudget },
-      })
-    )
-  );
+  // Fetch every existing row for the affected dates in one query instead of
+  // one round-trip per day — 30+ sequential round-trips inside an
+  // interactive transaction was slow enough to blow Prisma's transaction
+  // timeout and 500 the whole request.
+  const existingRows = await prisma.dailyRecord.findMany({
+    where: { storeId, date: { in: days.map((d) => new Date(d.date)) } },
+  });
+  const existingByDate = new Map(existingRows.map((r) => [r.date.toISOString().slice(0, 10), r]));
 
-  return NextResponse.json({ ok: true, count: days.length });
+  const conflicts: string[] = [];
+  const toWrite: DayBudgetInput[] = [];
+  for (const d of days) {
+    const existing = existingByDate.get(d.date);
+    const currentUpdatedAt = existing ? existing.updatedAt.toISOString() : null;
+    const staleBaseline = currentUpdatedAt !== (d.expectedUpdatedAt ?? null);
+    // The budget grid always resubmits all 30 days, even ones the user
+    // never touched, so a stale baseline alone isn't necessarily a real
+    // conflict — only flag it if applying this write would actually
+    // discard a value someone else set that differs from ours.
+    const wouldChangeData = !existing || existing.budgetSales !== d.budgetSales || existing.laborBudget !== d.laborBudget;
+    if (staleBaseline && wouldChangeData) {
+      conflicts.push(d.date);
+      continue;
+    }
+    toWrite.push(d);
+  }
+
+  const rows =
+    toWrite.length > 0
+      ? await prisma.$transaction(
+          toWrite.map((d) =>
+            prisma.dailyRecord.upsert({
+              where: { storeId_date: { storeId, date: new Date(d.date) } },
+              update: { budgetSales: d.budgetSales, laborBudget: d.laborBudget },
+              create: { storeId, date: new Date(d.date), budgetSales: d.budgetSales, laborBudget: d.laborBudget },
+            })
+          )
+        )
+      : [];
+
+  const updated = rows.map((row, i) => ({ date: toWrite[i].date, updatedAt: row.updatedAt.toISOString() }));
+
+  return NextResponse.json({ ok: true, count: updated.length, conflicts, updated });
 }
