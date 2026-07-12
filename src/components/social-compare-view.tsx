@@ -47,9 +47,21 @@ export function SocialCompareView({ rows, yearMonth }: { rows: SocialRow[]; year
 
   const th = "py-2 px-2 text-right font-semibold whitespace-nowrap";
   const thLeft = "py-2 px-2 text-left font-semibold whitespace-nowrap";
-  const td = "py-1.5 px-2 text-right whitespace-nowrap";
+  const td = "py-1.5 px-2 text-right whitespace-nowrap tabular-nums";
   const borderColor = theme.dark ? "#1E293B" : "#E2E8F0";
   const rowBorder = theme.dark ? "#111C2E" : "#F1F5F9";
+
+  // Stacks the value above its delta, both right-aligned to a fixed-width
+  // column, so the score/count and the arrow+delta line up vertically down
+  // the table instead of drifting left/right with each row's text width.
+  function ScoreCell({ value, delta }: { value: React.ReactNode; delta: React.ReactNode }) {
+    return (
+      <div className="flex flex-col items-end gap-0.5">
+        <span>{value}</span>
+        {delta}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -144,20 +156,14 @@ export function SocialCompareView({ rows, yearMonth }: { rows: SocialRow[]; year
                   </td>
                   <td className={td} style={{ borderLeft: `1px solid ${borderColor}` }}>
                     {r.google ? (
-                      <span className="inline-flex items-center gap-1.5">
-                        {r.google.score.toFixed(1)}
-                        <Delta value={r.google.score - r.google.scorePrev} digits={1} />
-                      </span>
+                      <ScoreCell value={r.google.score.toFixed(1)} delta={<Delta value={r.google.score - r.google.scorePrev} digits={1} />} />
                     ) : (
                       "—"
                     )}
                   </td>
                   <td className={td}>
                     {r.google ? (
-                      <span className="inline-flex items-center gap-1.5">
-                        {r.google.reviews.toLocaleString()}
-                        <Delta value={r.google.reviewsDelta} suffix="件" />
-                      </span>
+                      <ScoreCell value={r.google.reviews.toLocaleString()} delta={<Delta value={r.google.reviewsDelta} suffix="件" />} />
                     ) : (
                       "—"
                     )}
@@ -165,30 +171,21 @@ export function SocialCompareView({ rows, yearMonth }: { rows: SocialRow[]; year
                   <td className={td}>{r.google?.meoRank != null ? `${r.google.meoRank}位${r.google.meoTotal != null ? ` / ${r.google.meoTotal}` : ""}` : "—"}</td>
                   <td className={td} style={{ borderLeft: `1px solid ${borderColor}` }}>
                     {r.tabelog ? (
-                      <span className="inline-flex items-center gap-1.5">
-                        {r.tabelog.score.toFixed(2)}
-                        <Delta value={r.tabelog.score - r.tabelog.scorePrev} digits={2} />
-                      </span>
+                      <ScoreCell value={r.tabelog.score.toFixed(2)} delta={<Delta value={r.tabelog.score - r.tabelog.scorePrev} digits={2} />} />
                     ) : (
                       "—"
                     )}
                   </td>
                   <td className={td}>
                     {r.tabelog ? (
-                      <span className="inline-flex items-center gap-1.5">
-                        {r.tabelog.reviews.toLocaleString()}
-                        <Delta value={r.tabelog.reviewsDelta} suffix="件" />
-                      </span>
+                      <ScoreCell value={r.tabelog.reviews.toLocaleString()} delta={<Delta value={r.tabelog.reviewsDelta} suffix="件" />} />
                     ) : (
                       "—"
                     )}
                   </td>
                   <td className={td} style={{ borderLeft: `1px solid ${borderColor}` }}>
                     {r.tracksDazhong && r.dazhong ? (
-                      <span className="inline-flex items-center gap-1.5">
-                        {r.dazhong.score.toFixed(1)}
-                        <Delta value={r.dazhong.score - r.dazhong.scorePrev} digits={1} />
-                      </span>
+                      <ScoreCell value={r.dazhong.score.toFixed(1)} delta={<Delta value={r.dazhong.score - r.dazhong.scorePrev} digits={1} />} />
                     ) : r.tracksDazhong ? (
                       "未入力"
                     ) : (
@@ -197,10 +194,7 @@ export function SocialCompareView({ rows, yearMonth }: { rows: SocialRow[]; year
                   </td>
                   <td className={td}>
                     {r.tracksDazhong && r.dazhong ? (
-                      <span className="inline-flex items-center gap-1.5">
-                        {r.dazhong.reviews.toLocaleString()}
-                        <Delta value={r.dazhong.reviewsDelta} suffix="件" />
-                      </span>
+                      <ScoreCell value={r.dazhong.reviews.toLocaleString()} delta={<Delta value={r.dazhong.reviewsDelta} suffix="件" />} />
                     ) : r.tracksDazhong ? (
                       "未入力"
                     ) : (
@@ -209,20 +203,14 @@ export function SocialCompareView({ rows, yearMonth }: { rows: SocialRow[]; year
                   </td>
                   <td className={td} style={{ borderLeft: `1px solid ${borderColor}` }}>
                     {r.tripadvisor ? (
-                      <span className="inline-flex items-center gap-1.5">
-                        {r.tripadvisor.score.toFixed(1)}
-                        <Delta value={r.tripadvisor.score - r.tripadvisor.scorePrev} digits={1} />
-                      </span>
+                      <ScoreCell value={r.tripadvisor.score.toFixed(1)} delta={<Delta value={r.tripadvisor.score - r.tripadvisor.scorePrev} digits={1} />} />
                     ) : (
                       "—"
                     )}
                   </td>
                   <td className={td}>
                     {r.tripadvisor ? (
-                      <span className="inline-flex items-center gap-1.5">
-                        {r.tripadvisor.reviews.toLocaleString()}
-                        <Delta value={r.tripadvisor.reviewsDelta} suffix="件" />
-                      </span>
+                      <ScoreCell value={r.tripadvisor.reviews.toLocaleString()} delta={<Delta value={r.tripadvisor.reviewsDelta} suffix="件" />} />
                     ) : (
                       "—"
                     )}
