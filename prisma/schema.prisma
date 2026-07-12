@@ -30,6 +30,7 @@ enum ReputationSource {
   GOOGLE
   TABELOG
   DAZHONG
+  TRIPADVISOR
 }
 
 model Store {

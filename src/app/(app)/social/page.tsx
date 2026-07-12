@@ -18,7 +18,7 @@ export default async function SocialComparePage({ searchParams }: { searchParams
   const dataByStore = await getMarketingDataForStores(stores.map((s) => s.id), yearMonth);
 
   const rows: SocialRow[] = stores.map((store) => {
-    const { sns, googleRep, tabelogRep, dazhongRep } = dataByStore.get(store.id)!;
+    const { sns, googleRep, tabelogRep, dazhongRep, tripadvisorRep } = dataByStore.get(store.id)!;
     const meo = parseGoogleMeo(googleRep?.extra);
     const tracksDazhong = DAZHONG_STORES.includes(store.name);
 
@@ -41,6 +41,9 @@ export default async function SocialComparePage({ searchParams }: { searchParams
         : null,
       dazhong: dazhongRep
         ? { score: dazhongRep.score, scorePrev: dazhongRep.scorePrev, reviews: dazhongRep.reviews, reviewsDelta: dazhongRep.reviewsDelta }
+        : null,
+      tripadvisor: tripadvisorRep
+        ? { score: tripadvisorRep.score, scorePrev: tripadvisorRep.scorePrev, reviews: tripadvisorRep.reviews, reviewsDelta: tripadvisorRep.reviewsDelta }
         : null,
       instagramFollowers: sns.instagram.followers,
       instagramGrowth: sns.instagram.growth,

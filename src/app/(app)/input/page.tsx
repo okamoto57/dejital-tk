@@ -26,7 +26,7 @@ export default async function InputPage({
   const yearMonth = params.month ?? yearMonthNow();
   const bundle = await getMonthlyBundle(storeId, yearMonth);
   const dailyRows = buildDailyRows(bundle, yearMonth);
-  const { gourmet, sns, googleRep, tabelogRep, dazhongRep } = await getMarketingData(storeId, yearMonth);
+  const { gourmet, sns, googleRep, tabelogRep, dazhongRep, tripadvisorRep } = await getMarketingData(storeId, yearMonth);
   const previous = await getPreviousMarketingReference(storeId, yearMonth);
   const meo = parseGoogleMeo(googleRep?.extra);
 
@@ -41,6 +41,7 @@ export default async function InputPage({
       google={googleRep ? { ...googleRep, ...meo } : null}
       tabelog={tabelogRep}
       dazhong={bundle.store.name && DAZHONG_STORES.includes(bundle.store.name) ? dazhongRep : undefined}
+      tripadvisor={tripadvisorRep}
       sns={sns}
       previous={previous}
     />

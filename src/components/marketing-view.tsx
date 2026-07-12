@@ -56,6 +56,7 @@ export function MarketingView({
   google,
   tabelog,
   dazhong,
+  tripadvisor,
   advice,
 }: {
   gourmet: GourmetRow[];
@@ -64,6 +65,7 @@ export function MarketingView({
   google: GoogleReputationData | null;
   tabelog: ReputationData | null;
   dazhong?: ReputationData | null;
+  tripadvisor: ReputationData | null;
   advice: AdviceItem[];
 }) {
   const theme = useAppTheme();
@@ -159,10 +161,11 @@ export function MarketingView({
         </p>
       </Card>
 
-      <div className={`grid grid-cols-1 gap-4 ${dazhong !== undefined ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
+      <div className={`grid grid-cols-1 gap-4 ${dazhong !== undefined ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-3"}`}>
         <ReputationDisplay label="Google評価" color="#4285F4" data={google} digits={1} meo={google ? { rank: google.meoRank, total: google.meoTotal } : undefined} />
         <ReputationDisplay label="食べログ評価" color="#FF2800" data={tabelog} digits={2} />
         {dazhong !== undefined && <ReputationDisplay label="大衆点評" color="#FF6A00" data={dazhong} digits={1} />}
+        <ReputationDisplay label="Tripadvisor評価" color="#34E0A1" data={tripadvisor} digits={1} />
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

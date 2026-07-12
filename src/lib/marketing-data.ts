@@ -76,9 +76,11 @@ interface RawMarketingInputs {
   googleRep: ReputationSnapshot | null;
   tabelogRep: ReputationSnapshot | null;
   dazhongRep: ReputationSnapshot | null;
+  tripadvisorRep: ReputationSnapshot | null;
   googleRepPrev: ReputationSnapshot | null;
   tabelogRepPrev: ReputationSnapshot | null;
   dazhongRepPrev: ReputationSnapshot | null;
+  tripadvisorRepPrev: ReputationSnapshot | null;
 }
 
 /** Pure aggregation shared by the single-store and batched fetchers below. */
@@ -97,23 +99,37 @@ function buildMarketingData(raw: RawMarketingInputs) {
     googleRep: withLiveDelta(raw.googleRep, raw.googleRepPrev),
     tabelogRep: withLiveDelta(raw.tabelogRep, raw.tabelogRepPrev),
     dazhongRep: withLiveDelta(raw.dazhongRep, raw.dazhongRepPrev),
+    tripadvisorRep: withLiveDelta(raw.tripadvisorRep, raw.tripadvisorRepPrev),
   };
 }
 
 export async function getMarketingData(storeId: string, yearMonth: string) {
   const prevMonth = previousYearMonth(yearMonth);
-  const [gourmetRecords, snsRecords, snsRecordsPrev, googleRep, tabelogRep, dazhongRep, googleRepPrev, tabelogRepPrev, dazhongRepPrev] =
-    await Promise.all([
-      prisma.gourmetMediaRecord.findMany({ where: { storeId, yearMonth } }),
-      prisma.snsMetric.findMany({ where: { storeId, yearMonth } }),
-      prisma.snsMetric.findMany({ where: { storeId, yearMonth: prevMonth } }),
-      prisma.reputationSnapshot.findUnique({ where: { storeId_yearMonth_source: { storeId, yearMonth, source: "GOOGLE" } } }),
-      prisma.reputationSnapshot.findUnique({ where: { storeId_yearMonth_source: { storeId, yearMonth, source: "TABELOG" } } }),
-      prisma.reputationSnapshot.findUnique({ where: { storeId_yearMonth_source: { storeId, yearMonth, source: "DAZHONG" } } }),
-      prisma.reputationSnapshot.findUnique({ where: { storeId_yearMonth_source: { storeId, yearMonth: prevMonth, source: "GOOGLE" } } }),
-      prisma.reputationSnapshot.findUnique({ where: { storeId_yearMonth_source: { storeId, yearMonth: prevMonth, source: "TABELOG" } } }),
-      prisma.reputationSnapshot.findUnique({ where: { storeId_yearMonth_source: { storeId, yearMonth: prevMonth, source: "DAZHONG" } } }),
-    ]);
+  const [
+    gourmetRecords,
+    snsRecords,
+    snsRecordsPrev,
+    googleRep,
+    tabelogRep,
+    dazhongRep,
+    tripadvisorRep,
+    googleRepPrev,
+    tabelogRepPrev,
+    dazhongRepPrev,
+    tripadvisorRepPrev,
+  ] = await Promise.all([
+    prisma.gourmetMediaRecord.findMany({ where: { storeId, yearMonth } }),
+    prisma.snsMetric.findMany({ where: { storeId, yearMonth } }),
+    prisma.snsMetric.findMany({ where: { storeId, yearMonth: prevMonth } }),
+    prisma.reputationSnapshot.findUnique({ where: { storeId_yearMonth_source: { storeId, yearMonth, source: "GOOGLE" } } }),
+    prisma.reputationSnapshot.findUnique({ where: { storeId_yearMonth_source: { storeId, yearMonth, source: "TABELOG" } } }),
+    prisma.reputationSnapshot.findUnique({ where: { storeId_yearMonth_source: { storeId, yearMonth, source: "DAZHONG" } } }),
+    prisma.reputationSnapshot.findUnique({ where: { storeId_yearMonth_source: { storeId, yearMonth, source: "TRIPADVISOR" } } }),
+    prisma.reputationSnapshot.findUnique({ where: { storeId_yearMonth_source: { storeId, yearMonth: prevMonth, source: "GOOGLE" } } }),
+    prisma.reputationSnapshot.findUnique({ where: { storeId_yearMonth_source: { storeId, yearMonth: prevMonth, source: "TABELOG" } } }),
+    prisma.reputationSnapshot.findUnique({ where: { storeId_yearMonth_source: { storeId, yearMonth: prevMonth, source: "DAZHONG" } } }),
+    prisma.reputationSnapshot.findUnique({ where: { storeId_yearMonth_source: { storeId, yearMonth: prevMonth, source: "TRIPADVISOR" } } }),
+  ]);
 
   return buildMarketingData({
     gourmetRecords,
@@ -122,9 +138,11 @@ export async function getMarketingData(storeId: string, yearMonth: string) {
     googleRep,
     tabelogRep,
     dazhongRep,
+    tripadvisorRep,
     googleRepPrev,
     tabelogRepPrev,
     dazhongRepPrev,
+    tripadvisorRepPrev,
   });
 }
 
@@ -133,18 +151,31 @@ export async function getMarketingData(storeId: string, yearMonth: string) {
  * store — used by the SNS全店比較 page (24 stores x many queries otherwise). */
 export async function getMarketingDataForStores(storeIds: string[], yearMonth: string) {
   const prevMonth = previousYearMonth(yearMonth);
-  const [gourmetAll, snsAll, snsAllPrev, googleAll, tabelogAll, dazhongAll, googleAllPrev, tabelogAllPrev, dazhongAllPrev] =
-    await Promise.all([
-      prisma.gourmetMediaRecord.findMany({ where: { storeId: { in: storeIds }, yearMonth } }),
-      prisma.snsMetric.findMany({ where: { storeId: { in: storeIds }, yearMonth } }),
-      prisma.snsMetric.findMany({ where: { storeId: { in: storeIds }, yearMonth: prevMonth } }),
-      prisma.reputationSnapshot.findMany({ where: { storeId: { in: storeIds }, yearMonth, source: "GOOGLE" } }),
-      prisma.reputationSnapshot.findMany({ where: { storeId: { in: storeIds }, yearMonth, source: "TABELOG" } }),
-      prisma.reputationSnapshot.findMany({ where: { storeId: { in: storeIds }, yearMonth, source: "DAZHONG" } }),
-      prisma.reputationSnapshot.findMany({ where: { storeId: { in: storeIds }, yearMonth: prevMonth, source: "GOOGLE" } }),
-      prisma.reputationSnapshot.findMany({ where: { storeId: { in: storeIds }, yearMonth: prevMonth, source: "TABELOG" } }),
-      prisma.reputationSnapshot.findMany({ where: { storeId: { in: storeIds }, yearMonth: prevMonth, source: "DAZHONG" } }),
-    ]);
+  const [
+    gourmetAll,
+    snsAll,
+    snsAllPrev,
+    googleAll,
+    tabelogAll,
+    dazhongAll,
+    tripadvisorAll,
+    googleAllPrev,
+    tabelogAllPrev,
+    dazhongAllPrev,
+    tripadvisorAllPrev,
+  ] = await Promise.all([
+    prisma.gourmetMediaRecord.findMany({ where: { storeId: { in: storeIds }, yearMonth } }),
+    prisma.snsMetric.findMany({ where: { storeId: { in: storeIds }, yearMonth } }),
+    prisma.snsMetric.findMany({ where: { storeId: { in: storeIds }, yearMonth: prevMonth } }),
+    prisma.reputationSnapshot.findMany({ where: { storeId: { in: storeIds }, yearMonth, source: "GOOGLE" } }),
+    prisma.reputationSnapshot.findMany({ where: { storeId: { in: storeIds }, yearMonth, source: "TABELOG" } }),
+    prisma.reputationSnapshot.findMany({ where: { storeId: { in: storeIds }, yearMonth, source: "DAZHONG" } }),
+    prisma.reputationSnapshot.findMany({ where: { storeId: { in: storeIds }, yearMonth, source: "TRIPADVISOR" } }),
+    prisma.reputationSnapshot.findMany({ where: { storeId: { in: storeIds }, yearMonth: prevMonth, source: "GOOGLE" } }),
+    prisma.reputationSnapshot.findMany({ where: { storeId: { in: storeIds }, yearMonth: prevMonth, source: "TABELOG" } }),
+    prisma.reputationSnapshot.findMany({ where: { storeId: { in: storeIds }, yearMonth: prevMonth, source: "DAZHONG" } }),
+    prisma.reputationSnapshot.findMany({ where: { storeId: { in: storeIds }, yearMonth: prevMonth, source: "TRIPADVISOR" } }),
+  ]);
 
   const groupByStore = <T extends { storeId: string }>(rows: T[]) => {
     const map = new Map<string, T[]>();
@@ -162,9 +193,11 @@ export async function getMarketingDataForStores(storeIds: string[], yearMonth: s
   const googleByStore = new Map(googleAll.map((r) => [r.storeId, r]));
   const tabelogByStore = new Map(tabelogAll.map((r) => [r.storeId, r]));
   const dazhongByStore = new Map(dazhongAll.map((r) => [r.storeId, r]));
+  const tripadvisorByStore = new Map(tripadvisorAll.map((r) => [r.storeId, r]));
   const googlePrevByStore = new Map(googleAllPrev.map((r) => [r.storeId, r]));
   const tabelogPrevByStore = new Map(tabelogAllPrev.map((r) => [r.storeId, r]));
   const dazhongPrevByStore = new Map(dazhongAllPrev.map((r) => [r.storeId, r]));
+  const tripadvisorPrevByStore = new Map(tripadvisorAllPrev.map((r) => [r.storeId, r]));
 
   const result = new Map<string, ReturnType<typeof buildMarketingData>>();
   for (const storeId of storeIds) {
@@ -177,9 +210,11 @@ export async function getMarketingDataForStores(storeIds: string[], yearMonth: s
         googleRep: googleByStore.get(storeId) ?? null,
         tabelogRep: tabelogByStore.get(storeId) ?? null,
         dazhongRep: dazhongByStore.get(storeId) ?? null,
+        tripadvisorRep: tripadvisorByStore.get(storeId) ?? null,
         googleRepPrev: googlePrevByStore.get(storeId) ?? null,
         tabelogRepPrev: tabelogPrevByStore.get(storeId) ?? null,
         dazhongRepPrev: dazhongPrevByStore.get(storeId) ?? null,
+        tripadvisorRepPrev: tripadvisorPrevByStore.get(storeId) ?? null,
       })
     );
   }
@@ -195,6 +230,7 @@ export interface PreviousMarketingReference {
   google: PreviousScoreRef | null;
   tabelog: PreviousScoreRef | null;
   dazhong: PreviousScoreRef | null;
+  tripadvisor: PreviousScoreRef | null;
   instagramFollowers: number | null;
   tiktokFollowers: number | null;
   lineFriends: number | null;
@@ -206,10 +242,11 @@ export interface PreviousMarketingReference {
 export async function getPreviousMarketingReference(storeId: string, yearMonth: string): Promise<PreviousMarketingReference> {
   const prevMonth = previousYearMonth(yearMonth);
 
-  const [googlePrev, tabelogPrev, dazhongPrev, snsPrev] = await Promise.all([
+  const [googlePrev, tabelogPrev, dazhongPrev, tripadvisorPrev, snsPrev] = await Promise.all([
     prisma.reputationSnapshot.findUnique({ where: { storeId_yearMonth_source: { storeId, yearMonth: prevMonth, source: "GOOGLE" } } }),
     prisma.reputationSnapshot.findUnique({ where: { storeId_yearMonth_source: { storeId, yearMonth: prevMonth, source: "TABELOG" } } }),
     prisma.reputationSnapshot.findUnique({ where: { storeId_yearMonth_source: { storeId, yearMonth: prevMonth, source: "DAZHONG" } } }),
+    prisma.reputationSnapshot.findUnique({ where: { storeId_yearMonth_source: { storeId, yearMonth: prevMonth, source: "TRIPADVISOR" } } }),
     prisma.snsMetric.findMany({ where: { storeId, yearMonth: prevMonth } }),
   ]);
 
@@ -219,6 +256,7 @@ export async function getPreviousMarketingReference(storeId: string, yearMonth: 
     google: googlePrev ? { score: googlePrev.score, reviews: googlePrev.reviews } : null,
     tabelog: tabelogPrev ? { score: tabelogPrev.score, reviews: tabelogPrev.reviews } : null,
     dazhong: dazhongPrev ? { score: dazhongPrev.score, reviews: dazhongPrev.reviews } : null,
+    tripadvisor: tripadvisorPrev ? { score: tripadvisorPrev.score, reviews: tripadvisorPrev.reviews } : null,
     instagramFollowers: snsPrevByPlatform.get("instagram")?.followers ?? null,
     tiktokFollowers: snsPrevByPlatform.get("tiktok")?.followers ?? null,
     lineFriends: snsPrevByPlatform.get("line")?.friends ?? null,

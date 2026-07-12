@@ -15,6 +15,7 @@ export interface PreviousReference {
   google: PreviousScoreRef | null;
   tabelog: PreviousScoreRef | null;
   dazhong: PreviousScoreRef | null;
+  tripadvisor: PreviousScoreRef | null;
   instagramFollowers: number | null;
   tiktokFollowers: number | null;
   lineFriends: number | null;
@@ -29,6 +30,7 @@ export function DataEntryView({
   google,
   tabelog,
   dazhong,
+  tripadvisor,
   sns,
   previous,
 }: {
@@ -40,6 +42,7 @@ export function DataEntryView({
   google: ReputationInitial | null;
   tabelog: ReputationInitial | null;
   dazhong?: ReputationInitial | null;
+  tripadvisor: ReputationInitial | null;
   sns: SnsInitialData;
   previous: PreviousReference;
 }) {
@@ -55,7 +58,7 @@ export function DataEntryView({
 
       <PrCampaignForm storeId={storeId} yearMonth={yearMonth} initial={prCampaign} />
 
-      <div className={`grid grid-cols-1 gap-4 ${dazhong !== undefined ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
+      <div className={`grid grid-cols-1 gap-4 ${dazhong !== undefined ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-3"}`}>
         <ReputationForm
           storeId={storeId}
           yearMonth={yearMonth}
@@ -85,6 +88,15 @@ export function DataEntryView({
             previous={previous.dazhong}
           />
         )}
+        <ReputationForm
+          storeId={storeId}
+          yearMonth={yearMonth}
+          source="TRIPADVISOR"
+          label="Tripadvisor評価を入力"
+          color="#34E0A1"
+          initial={tripadvisor}
+          previous={previous.tripadvisor}
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

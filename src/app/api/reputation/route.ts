@@ -10,8 +10,8 @@ export async function PUT(req: NextRequest) {
   if (!storeId || !yearMonth || !source) {
     return NextResponse.json({ error: "storeId, yearMonth, source are required" }, { status: 400 });
   }
-  if (source !== "GOOGLE" && source !== "TABELOG" && source !== "DAZHONG") {
-    return NextResponse.json({ error: "source must be GOOGLE, TABELOG, or DAZHONG" }, { status: 400 });
+  if (source !== "GOOGLE" && source !== "TABELOG" && source !== "DAZHONG" && source !== "TRIPADVISOR") {
+    return NextResponse.json({ error: "source must be GOOGLE, TABELOG, DAZHONG, or TRIPADVISOR" }, { status: 400 });
   }
   if (!canAccessStore(session, storeId)) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });

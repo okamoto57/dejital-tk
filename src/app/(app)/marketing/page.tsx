@@ -24,7 +24,7 @@ export default async function MarketingPage({
   }
 
   const yearMonth = params.month ?? yearMonthNow();
-  const { gourmet, sns, googleRep, tabelogRep, dazhongRep } = await getMarketingData(storeId, yearMonth);
+  const { gourmet, sns, googleRep, tabelogRep, dazhongRep, tripadvisorRep } = await getMarketingData(storeId, yearMonth);
   const prCampaignRecord = await prisma.prCampaignRecord.findUnique({ where: { storeId_yearMonth: { storeId, yearMonth } } });
   const meo = parseGoogleMeo(googleRep?.extra);
   const storeName = stores.find((s) => s.id === storeId)?.name;
@@ -46,6 +46,7 @@ export default async function MarketingPage({
       google={googleRep ? { ...googleRep, ...meo } : null}
       tabelog={tabelogRep}
       dazhong={tracksDazhong ? dazhongRep : undefined}
+      tripadvisor={tripadvisorRep}
       advice={advice}
     />
   );

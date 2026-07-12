@@ -15,6 +15,7 @@ export interface SocialRow {
   google: { score: number; scorePrev: number; reviews: number; reviewsDelta: number; meoRank: number | null; meoTotal: number | null } | null;
   tabelog: { score: number; scorePrev: number; reviews: number; reviewsDelta: number } | null;
   dazhong: { score: number; scorePrev: number; reviews: number; reviewsDelta: number } | null;
+  tripadvisor: { score: number; scorePrev: number; reviews: number; reviewsDelta: number } | null;
   instagramFollowers: number;
   instagramGrowth: number;
   lineFriends: number;
@@ -96,6 +97,9 @@ export function SocialCompareView({ rows, yearMonth }: { rows: SocialRow[]; year
                   大衆点評
                 </th>
                 <th className={th} colSpan={2} style={{ borderLeft: `1px solid ${borderColor}` }}>
+                  Tripadvisor
+                </th>
+                <th className={th} colSpan={2} style={{ borderLeft: `1px solid ${borderColor}` }}>
                   Instagram
                 </th>
                 <th className={th} colSpan={2} style={{ borderLeft: `1px solid ${borderColor}` }}>
@@ -108,6 +112,10 @@ export function SocialCompareView({ rows, yearMonth }: { rows: SocialRow[]; year
                 </th>
                 <th className={th}>口コミ数(前月比)</th>
                 <th className={th}>MEO順位</th>
+                <th className={th} style={{ borderLeft: `1px solid ${borderColor}` }}>
+                  ☆スコア(前月比)
+                </th>
+                <th className={th}>口コミ数(前月比)</th>
                 <th className={th} style={{ borderLeft: `1px solid ${borderColor}` }}>
                   ☆スコア(前月比)
                 </th>
@@ -200,6 +208,26 @@ export function SocialCompareView({ rows, yearMonth }: { rows: SocialRow[]; year
                     )}
                   </td>
                   <td className={td} style={{ borderLeft: `1px solid ${borderColor}` }}>
+                    {r.tripadvisor ? (
+                      <span className="inline-flex items-center gap-1.5">
+                        {r.tripadvisor.score.toFixed(1)}
+                        <Delta value={r.tripadvisor.score - r.tripadvisor.scorePrev} digits={1} />
+                      </span>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+                  <td className={td}>
+                    {r.tripadvisor ? (
+                      <span className="inline-flex items-center gap-1.5">
+                        {r.tripadvisor.reviews.toLocaleString()}
+                        <Delta value={r.tripadvisor.reviewsDelta} suffix="件" />
+                      </span>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+                  <td className={td} style={{ borderLeft: `1px solid ${borderColor}` }}>
                     {r.instagramFollowers.toLocaleString()}
                   </td>
                   <td className={td}>
@@ -215,7 +243,7 @@ export function SocialCompareView({ rows, yearMonth }: { rows: SocialRow[]; year
               ))}
               {rows.length === 0 && (
                 <tr>
-                  <td colSpan={12} className={`py-6 text-center ${theme.subText}`}>
+                  <td colSpan={14} className={`py-6 text-center ${theme.subText}`}>
                     店舗データがありません。
                   </td>
                 </tr>

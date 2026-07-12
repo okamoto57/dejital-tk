@@ -624,7 +624,7 @@ export function ReputationForm({
 }: {
   storeId: string;
   yearMonth: string;
-  source: "GOOGLE" | "TABELOG" | "DAZHONG";
+  source: "GOOGLE" | "TABELOG" | "DAZHONG" | "TRIPADVISOR";
   label: string;
   color: string;
   initial: ReputationInitial | null;
