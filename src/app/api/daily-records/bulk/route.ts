@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession, canAccessStore } from "@/lib/api-guard";
+import { computeFoodCostTotal } from "@/lib/metrics";
 
 interface DayInput {
   date: string;
   actualSales?: number;
-  foodCost?: number;
+  foodCostInfomart?: number;
+  foodCostOther?: number;
   laborCost?: number;
   customers?: number;
   // updatedAt the client last saw for this day (null if the day had no
@@ -25,16 +27,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
-  const prepared: { date: string; data: Record<string, number> }[] = [];
+  const validDays: DayInput[] = [];
   for (const day of days) {
     if (!day.date) continue;
-
-    // Only fields actually provided are written, so a partially-filled row
-    // never clobbers other metrics already saved for that date.
-    const data: Record<string, number> = {};
     for (const [key, value] of Object.entries({
       actualSales: day.actualSales,
-      foodCost: day.foodCost,
+      foodCostInfomart: day.foodCostInfomart,
+      foodCostOther: day.foodCostOther,
       laborCost: day.laborCost,
       customers: day.customers,
     })) {
@@ -42,7 +41,39 @@ export async function POST(req: NextRequest) {
       if (typeof value !== "number" || Number.isNaN(value) || value < 0) {
         return NextResponse.json({ error: `${day.date}: ${key} must be a non-negative number` }, { status: 400 });
       }
-      data[key] = value;
+    }
+    validDays.push(day);
+  }
+
+  if (validDays.length === 0) {
+    return NextResponse.json({ error: "no rows with data to save" }, { status: 400 });
+  }
+
+  // Fetch every existing row for the affected dates in one query instead of
+  // one round-trip per day — 30+ sequential round-trips inside an
+  // interactive transaction was slow enough to blow Prisma's transaction
+  // timeout and 500 the whole request. Also doubles as the merge baseline
+  // for インフォマート/その他 -> foodCost (税込) below.
+  const existingRows = await prisma.dailyRecord.findMany({
+    where: { storeId, date: { in: validDays.map((d) => new Date(d.date)) } },
+  });
+  const existingByDate = new Map(existingRows.map((r) => [r.date.toISOString().slice(0, 10), r]));
+
+  const prepared: { date: string; data: Record<string, number | null> }[] = [];
+  for (const day of validDays) {
+    const existing = existingByDate.get(day.date);
+    const data: Record<string, number | null> = {};
+    for (const [key, value] of Object.entries({ actualSales: day.actualSales, laborCost: day.laborCost, customers: day.customers })) {
+      if (value !== undefined) data[key] = value;
+    }
+    // インフォマート(税抜)・その他のいずれかが送られてきた場合のみ、既存の
+    // もう片方の値と合算して税込のfoodCostを再計算する。
+    if (day.foodCostInfomart !== undefined || day.foodCostOther !== undefined) {
+      const mergedInfomart = day.foodCostInfomart !== undefined ? day.foodCostInfomart : (existing?.foodCostInfomart ?? null);
+      const mergedOther = day.foodCostOther !== undefined ? day.foodCostOther : (existing?.foodCostOther ?? null);
+      data.foodCostInfomart = mergedInfomart;
+      data.foodCostOther = mergedOther;
+      data.foodCost = computeFoodCostTotal(mergedInfomart, mergedOther);
     }
     if (Object.keys(data).length === 0) continue;
     prepared.push({ date: day.date, data });
@@ -53,15 +84,6 @@ export async function POST(req: NextRequest) {
   }
 
   const expectedByDate = new Map(days.map((d) => [d.date, d.expectedUpdatedAt ?? null]));
-
-  // Fetch every existing row for the affected dates in one query instead of
-  // one round-trip per day — 30+ sequential round-trips inside an
-  // interactive transaction was slow enough to blow Prisma's transaction
-  // timeout and 500 the whole request.
-  const existingRows = await prisma.dailyRecord.findMany({
-    where: { storeId, date: { in: prepared.map((d) => new Date(d.date)) } },
-  });
-  const existingByDate = new Map(existingRows.map((r) => [r.date.toISOString().slice(0, 10), r]));
 
   const conflicts: string[] = [];
   const toWrite: typeof prepared = [];

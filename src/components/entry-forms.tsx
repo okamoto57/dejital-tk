@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Plus, Save } from "lucide-react";
 import { BRAND } from "@/lib/theme";
 import { yen } from "@/lib/format";
+import { INFOMART_TAX_RATE, computeFoodCostTotal } from "@/lib/metrics";
 import type { DailyRow } from "@/lib/types";
 import { Card, Field, useInputCls } from "./ui";
 import { useAppTheme } from "./theme-provider";
@@ -32,11 +33,20 @@ export function DailyRecordForm({ storeId, yearMonth }: { storeId: string; yearM
   const today = new Date().toISOString().slice(0, 10);
   const [date, setDate] = useState(today.startsWith(yearMonth) ? today : `${yearMonth}-01`);
   const [actualSales, setActualSales] = useState("");
-  const [foodCost, setFoodCost] = useState("");
+  const [foodCostInfomart, setFoodCostInfomart] = useState("");
+  const [foodCostOther, setFoodCostOther] = useState("");
   const [laborCost, setLaborCost] = useState("");
   const [customers, setCustomers] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const foodCostPreview =
+    foodCostInfomart !== "" || foodCostOther !== ""
+      ? computeFoodCostTotal(
+          foodCostInfomart !== "" ? Number(cleanNumeric(foodCostInfomart)) || 0 : null,
+          foodCostOther !== "" ? Number(cleanNumeric(foodCostOther)) || 0 : null
+        )
+      : null;
 
   async function submit() {
     setSubmitting(true);
@@ -46,7 +56,8 @@ export function DailyRecordForm({ storeId, yearMonth }: { storeId: string; yearM
       // blank while only updating 人件費 doesn't zero out the existing sales value.
       const payload: Record<string, unknown> = { storeId, date };
       if (actualSales !== "") payload.actualSales = Number(cleanNumeric(actualSales));
-      if (foodCost !== "") payload.foodCost = Number(cleanNumeric(foodCost));
+      if (foodCostInfomart !== "") payload.foodCostInfomart = Number(cleanNumeric(foodCostInfomart));
+      if (foodCostOther !== "") payload.foodCostOther = Number(cleanNumeric(foodCostOther));
       if (laborCost !== "") payload.laborCost = Number(cleanNumeric(laborCost));
       if (customers !== "") payload.customers = Number(cleanNumeric(customers));
 
@@ -60,7 +71,8 @@ export function DailyRecordForm({ storeId, yearMonth }: { storeId: string; yearM
         throw new Error(body.error ?? "登録に失敗しました");
       }
       setActualSales("");
-      setFoodCost("");
+      setFoodCostInfomart("");
+      setFoodCostOther("");
       setLaborCost("");
       setCustomers("");
       router.refresh();
@@ -73,15 +85,18 @@ export function DailyRecordForm({ storeId, yearMonth }: { storeId: string; yearM
 
   return (
     <Card title="日別実績を入力">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <Field label="日付">
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={inputCls} />
         </Field>
         <Field label="売上実績(円)">
           <input type="number" value={actualSales} onChange={(e) => setActualSales(e.target.value)} placeholder="0" className={inputCls} />
         </Field>
-        <Field label="仕入・食材原価(円)">
-          <input type="number" value={foodCost} onChange={(e) => setFoodCost(e.target.value)} placeholder="0" className={inputCls} />
+        <Field label="インフォマート仕入(税抜・円)">
+          <input type="number" value={foodCostInfomart} onChange={(e) => setFoodCostInfomart(e.target.value)} placeholder="0" className={inputCls} />
+        </Field>
+        <Field label="その他仕入(円)">
+          <input type="number" value={foodCostOther} onChange={(e) => setFoodCostOther(e.target.value)} placeholder="0" className={inputCls} />
         </Field>
         <Field label="人件費(円)">
           <input type="number" value={laborCost} onChange={(e) => setLaborCost(e.target.value)} placeholder="0" className={inputCls} />
@@ -90,6 +105,11 @@ export function DailyRecordForm({ storeId, yearMonth }: { storeId: string; yearM
           <input type="number" value={customers} onChange={(e) => setCustomers(e.target.value)} placeholder="0" className={inputCls} />
         </Field>
       </div>
+      {foodCostPreview != null && (
+        <p className="mt-2 text-xs font-semibold" style={{ color: BRAND.blue }}>
+          仕入原価合計(税込・{((INFOMART_TAX_RATE - 1) * 100).toFixed(0)}%換算): {yen(foodCostPreview)}
+        </p>
+      )}
       {error && (
         <p className="mt-2 text-xs font-semibold" style={{ color: BRAND.alert }}>
           {error}
@@ -110,7 +130,7 @@ export function DailyRecordForm({ storeId, yearMonth }: { storeId: string; yearM
   );
 }
 
-const BULK_DAILY_COLUMNS = ["actualSales", "foodCost", "laborCost", "customers"] as const;
+const BULK_DAILY_COLUMNS = ["actualSales", "foodCostInfomart", "foodCostOther", "laborCost", "customers"] as const;
 type BulkDailyField = (typeof BULK_DAILY_COLUMNS)[number];
 type BulkDailyDraft = Record<BulkDailyField, string>;
 
@@ -123,7 +143,8 @@ export function BulkDailyRecordForm({ storeId, yearMonth, rows }: { storeId: str
     for (const r of rows) {
       m[r.isoDate] = {
         actualSales: r.actualSales != null ? String(r.actualSales) : "",
-        foodCost: r.foodCost != null ? String(r.foodCost) : "",
+        foodCostInfomart: r.foodCostInfomart != null ? String(r.foodCostInfomart) : "",
+        foodCostOther: r.foodCostOther != null ? String(r.foodCostOther) : "",
         laborCost: r.laborCost != null ? String(r.laborCost) : "",
         customers: r.customers != null ? String(r.customers) : "",
       };
@@ -245,7 +266,8 @@ export function BulkDailyRecordForm({ storeId, yearMonth, rows }: { storeId: str
             <tr className={`border-b text-left ${theme.subText}`} style={{ borderColor: theme.dark ? "#1E293B" : "#E2E8F0" }}>
               <th className="py-1.5 pl-2 pr-2 font-semibold">日付</th>
               <th className="py-1.5 pr-2 font-semibold">売上実績(円)</th>
-              <th className="py-1.5 pr-2 font-semibold">仕入・食材原価(円)</th>
+              <th className="py-1.5 pr-2 font-semibold">インフォマート仕入(税抜・円)</th>
+              <th className="py-1.5 pr-2 font-semibold">その他仕入(円)</th>
               <th className="py-1.5 pr-2 font-semibold">人件費(円)</th>
               <th className="py-1.5 pr-2 font-semibold">客数</th>
             </tr>

@@ -3,6 +3,7 @@ import {
   aggregatePettyCash,
   buildRadarData,
   computeFlMetrics,
+  computeFoodCostTotal,
   computeLanding,
   daysInYearMonth,
   isFlAlert,
@@ -97,6 +98,27 @@ describe("computeFlMetrics", () => {
     expect(metrics.actualL).toBeCloseTo(20, 5); // 200000 / 1000000
     // budgetAchieve stays based on raw actualSales, unaffected by prFee
     expect(metrics.budgetAchieve).toBeCloseTo(80, 5);
+  });
+});
+
+describe("computeFoodCostTotal", () => {
+  it("grosses up インフォマート(税抜) by 8% and adds その他 as-is", () => {
+    // round(10000 * 1.08) + 500 = 10800 + 500 = 11300
+    expect(computeFoodCostTotal(10_000, 500)).toBe(11_300);
+  });
+
+  it("treats a missing side as zero", () => {
+    expect(computeFoodCostTotal(10_000, null)).toBe(10_800);
+    expect(computeFoodCostTotal(null, 500)).toBe(500);
+  });
+
+  it("returns null only when both sides are unset (no purchase entry at all)", () => {
+    expect(computeFoodCostTotal(null, null)).toBeNull();
+  });
+
+  it("rounds to the nearest yen", () => {
+    // 333 * 1.08 = 359.64 -> rounds to 360
+    expect(computeFoodCostTotal(333, 0)).toBe(360);
   });
 });
 

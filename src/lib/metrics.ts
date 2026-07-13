@@ -2,6 +2,19 @@ export function budgetAchievePct(actual: number, budget: number): number {
   return budget > 0 ? (actual / budget) * 100 : 0;
 }
 
+/** インフォマート経由の仕入れは税抜で入力されるため、原価計算に使う金額は
+ * 8%の消費税を上乗せ(税込)した金額にする。 */
+export const INFOMART_TAX_RATE = 1.08;
+
+/** Combines the two 仕入れ input fields into the single tax-included food
+ * cost figure the rest of the app reads: インフォマート(税抜)を8%税込に
+ * 換算した金額 + その他(そのまま)。Returns null only when both are unset,
+ * so a day with no purchase entry at all still reads as "not recorded". */
+export function computeFoodCostTotal(infomart: number | null, other: number | null): number | null {
+  if (infomart == null && other == null) return null;
+  return Math.round((infomart ?? 0) * INFOMART_TAX_RATE) + (other ?? 0);
+}
+
 export type InOut = "IN" | "OUT";
 
 export interface PettyCashEntryLike {

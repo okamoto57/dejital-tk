@@ -6,6 +6,10 @@ export interface DailyRow {
   laborBudget: number;
   actualSales: number | null;
   foodCost: number | null;
+  // Raw 仕入れ input split (foodCost above is the derived tax-included
+  // total computed from these two), used to pre-fill the entry forms.
+  foodCostInfomart: number | null;
+  foodCostOther: number | null;
   laborCost: number | null;
   customers: number | null;
   fRate: number | null;

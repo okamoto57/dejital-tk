@@ -75,7 +75,13 @@ model DailyRecord {
   budgetSales Float    @default(0)
   laborBudget Float    @default(0)
   actualSales Float?
-  foodCost    Float?
+  // foodCost is the tax-included cost total, derived and stored whenever
+  // foodCostInfomart and/or foodCostOther is entered (foodCostInfomart is
+  // entered tax-excluded and grossed up by 8% at save time). foodCost
+  // itself is what every other part of the app reads.
+  foodCost         Float?
+  foodCostInfomart Float?
+  foodCostOther    Float?
   laborCost   Float?
   customers   Int?
   createdAt   DateTime @default(now())

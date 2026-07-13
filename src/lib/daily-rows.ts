@@ -46,6 +46,8 @@ export function buildDailyRows(bundle: MonthlyBundle, yearMonth: string): DailyR
       laborBudget,
       actualSales,
       foodCost,
+      foodCostInfomart: r?.foodCostInfomart ?? null,
+      foodCostOther: r?.foodCostOther ?? null,
       laborCost,
       customers: r?.customers ?? null,
       fRate,
