@@ -22,21 +22,83 @@ export interface SocialRow {
   lineGrowth: number;
 }
 
+type SortKey =
+  | "custom"
+  | "name"
+  | "googleReviews"
+  | "tabelogReviews"
+  | "lineFriends"
+  | "instagramFollowers"
+  | "dazhongReviews"
+  | "tripadvisorReviews";
+
 export function SocialCompareView({ rows, yearMonth }: { rows: SocialRow[]; yearMonth: string }) {
   const theme = useAppTheme();
-  // "custom" shows rows in the store-management drag order (the default);
-  // clicking 店舗名 cycles to a temporary 五十音順 preview and back.
-  const [nameSort, setNameSort] = useState<"custom" | "asc" | "desc">("custom");
+  // "custom" shows rows in the store-management drag order (the default).
+  // Clicking 店舗名 cycles custom -> 五十音asc -> 五十音desc -> custom;
+  // clicking a 口コミ数/フォロワー数/登録数 header sorts by that count
+  // (high-to-low first), toggling low-to-high on a second click.
+  const [sortKey, setSortKey] = useState<SortKey>("custom");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  function toggleSort(key: SortKey) {
+    if (key === "name") {
+      if (sortKey !== "name") {
+        setSortKey("name");
+        setSortDir("asc");
+      } else if (sortDir === "asc") {
+        setSortDir("desc");
+      } else {
+        setSortKey("custom");
+      }
+      return;
+    }
+    if (sortKey === key) {
+      setSortDir((d) => (d === "desc" ? "asc" : "desc"));
+    } else {
+      setSortKey(key);
+      setSortDir("desc");
+    }
+  }
 
   const sortedRows = useMemo(() => {
-    if (nameSort === "custom") return rows;
-    const sorted = [...rows].sort((a, b) => compareJa(a.name, b.name));
-    return nameSort === "asc" ? sorted : sorted.reverse();
-  }, [rows, nameSort]);
+    if (sortKey === "custom") return rows;
+    if (sortKey === "name") {
+      const sorted = [...rows].sort((a, b) => compareJa(a.name, b.name));
+      return sortDir === "asc" ? sorted : sorted.reverse();
+    }
 
-  function toggleNameSort() {
-    setNameSort((prev) => (prev === "custom" ? "asc" : prev === "asc" ? "desc" : "custom"));
-  }
+    const getValue = (r: SocialRow): number | null => {
+      switch (sortKey) {
+        case "googleReviews":
+          return r.google?.reviews ?? null;
+        case "tabelogReviews":
+          return r.tabelog?.reviews ?? null;
+        case "dazhongReviews":
+          return r.tracksDazhong ? (r.dazhong?.reviews ?? null) : null;
+        case "tripadvisorReviews":
+          return r.tripadvisor?.reviews ?? null;
+        case "instagramFollowers":
+          return r.instagramFollowers;
+        case "lineFriends":
+          return r.lineFriends;
+        default:
+          return null;
+      }
+    };
+
+    // Stores with no data for the sorted metric always sink to the bottom,
+    // regardless of sort direction, so "—"/対象外 rows don't interleave
+    // with the ranked ones.
+    const withVal = rows.map((r) => ({ r, v: getValue(r) }));
+    withVal.sort((a, b) => {
+      if (a.v == null && b.v == null) return 0;
+      if (a.v == null) return 1;
+      if (b.v == null) return -1;
+      return sortDir === "desc" ? b.v - a.v : a.v - b.v;
+    });
+    return withVal.map((x) => x.r);
+  }, [rows, sortKey, sortDir]);
 
   const withGoogle = rows.filter((r) => r.google);
   const avgGoogle = withGoogle.length ? withGoogle.reduce((a, r) => a + (r.google?.score ?? 0), 0) / withGoogle.length : null;
@@ -60,6 +122,16 @@ export function SocialCompareView({ rows, yearMonth }: { rows: SocialRow[]; year
         <span>{value}</span>
         {delta}
       </div>
+    );
+  }
+
+  function SortButton({ sortKeyValue, label }: { sortKeyValue: SortKey; label: string }) {
+    const active = sortKey === sortKeyValue;
+    return (
+      <button onClick={() => toggleSort(sortKeyValue)} className="inline-flex items-center gap-1 hover:underline">
+        {label}
+        {active ? sortDir === "desc" ? <ArrowDown size={12} /> : <ArrowUp size={12} /> : null}
+      </button>
     );
   }
 
@@ -94,10 +166,7 @@ export function SocialCompareView({ rows, yearMonth }: { rows: SocialRow[]; year
             <thead>
               <tr className={theme.subText} style={{ borderBottom: `1px solid ${borderColor}` }}>
                 <th className={thLeft} rowSpan={2}>
-                  <button onClick={toggleNameSort} className="flex items-center gap-1 hover:underline">
-                    店舗名
-                    {nameSort === "asc" ? <ArrowUp size={12} /> : nameSort === "desc" ? <ArrowDown size={12} /> : null}
-                  </button>
+                  <SortButton sortKeyValue="name" label="店舗名" />
                 </th>
                 <th className={th} colSpan={3} style={{ borderLeft: `1px solid ${borderColor}` }}>
                   Google
@@ -106,44 +175,52 @@ export function SocialCompareView({ rows, yearMonth }: { rows: SocialRow[]; year
                   食べログ
                 </th>
                 <th className={th} colSpan={2} style={{ borderLeft: `1px solid ${borderColor}` }}>
-                  大衆点評
-                </th>
-                <th className={th} colSpan={2} style={{ borderLeft: `1px solid ${borderColor}` }}>
-                  Tripadvisor
+                  LINE
                 </th>
                 <th className={th} colSpan={2} style={{ borderLeft: `1px solid ${borderColor}` }}>
                   Instagram
                 </th>
                 <th className={th} colSpan={2} style={{ borderLeft: `1px solid ${borderColor}` }}>
-                  LINE
+                  大衆点評
+                </th>
+                <th className={th} colSpan={2} style={{ borderLeft: `1px solid ${borderColor}` }}>
+                  Tripadvisor
                 </th>
               </tr>
               <tr className={theme.subText} style={{ borderBottom: `1px solid ${borderColor}` }}>
                 <th className={th} style={{ borderLeft: `1px solid ${borderColor}` }}>
                   ☆スコア(前月比)
                 </th>
-                <th className={th}>口コミ数(前月比)</th>
+                <th className={th}>
+                  <SortButton sortKeyValue="googleReviews" label="口コミ数(前月比)" />
+                </th>
                 <th className={th}>MEO順位</th>
                 <th className={th} style={{ borderLeft: `1px solid ${borderColor}` }}>
                   ☆スコア(前月比)
                 </th>
-                <th className={th}>口コミ数(前月比)</th>
-                <th className={th} style={{ borderLeft: `1px solid ${borderColor}` }}>
-                  ☆スコア(前月比)
+                <th className={th}>
+                  <SortButton sortKeyValue="tabelogReviews" label="口コミ数(前月比)" />
                 </th>
-                <th className={th}>口コミ数(前月比)</th>
                 <th className={th} style={{ borderLeft: `1px solid ${borderColor}` }}>
-                  ☆スコア(前月比)
-                </th>
-                <th className={th}>口コミ数(前月比)</th>
-                <th className={th} style={{ borderLeft: `1px solid ${borderColor}` }}>
-                  フォロワー数
+                  <SortButton sortKeyValue="lineFriends" label="登録数" />
                 </th>
                 <th className={th}>前月比</th>
                 <th className={th} style={{ borderLeft: `1px solid ${borderColor}` }}>
-                  登録数
+                  <SortButton sortKeyValue="instagramFollowers" label="フォロワー数" />
                 </th>
                 <th className={th}>前月比</th>
+                <th className={th} style={{ borderLeft: `1px solid ${borderColor}` }}>
+                  ☆スコア(前月比)
+                </th>
+                <th className={th}>
+                  <SortButton sortKeyValue="dazhongReviews" label="口コミ数(前月比)" />
+                </th>
+                <th className={th} style={{ borderLeft: `1px solid ${borderColor}` }}>
+                  ☆スコア(前月比)
+                </th>
+                <th className={th}>
+                  <SortButton sortKeyValue="tripadvisorReviews" label="口コミ数(前月比)" />
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -184,6 +261,18 @@ export function SocialCompareView({ rows, yearMonth }: { rows: SocialRow[]; year
                     )}
                   </td>
                   <td className={td} style={{ borderLeft: `1px solid ${borderColor}` }}>
+                    {r.lineFriends.toLocaleString()}
+                  </td>
+                  <td className={td}>
+                    <Delta value={r.lineGrowth} />
+                  </td>
+                  <td className={td} style={{ borderLeft: `1px solid ${borderColor}` }}>
+                    {r.instagramFollowers.toLocaleString()}
+                  </td>
+                  <td className={td}>
+                    <Delta value={r.instagramGrowth} />
+                  </td>
+                  <td className={td} style={{ borderLeft: `1px solid ${borderColor}` }}>
                     {r.tracksDazhong && r.dazhong ? (
                       <ScoreCell value={r.dazhong.score.toFixed(1)} delta={<Delta value={r.dazhong.score - r.dazhong.scorePrev} digits={1} />} />
                     ) : r.tracksDazhong ? (
@@ -214,18 +303,6 @@ export function SocialCompareView({ rows, yearMonth }: { rows: SocialRow[]; year
                     ) : (
                       "—"
                     )}
-                  </td>
-                  <td className={td} style={{ borderLeft: `1px solid ${borderColor}` }}>
-                    {r.instagramFollowers.toLocaleString()}
-                  </td>
-                  <td className={td}>
-                    <Delta value={r.instagramGrowth} />
-                  </td>
-                  <td className={td} style={{ borderLeft: `1px solid ${borderColor}` }}>
-                    {r.lineFriends.toLocaleString()}
-                  </td>
-                  <td className={td}>
-                    <Delta value={r.lineGrowth} />
                   </td>
                 </tr>
               ))}
