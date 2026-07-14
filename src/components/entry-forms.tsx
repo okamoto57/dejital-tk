@@ -260,8 +260,8 @@ export function BulkDailyRecordForm({ storeId, yearMonth, rows }: { storeId: str
       <p className={`mb-3 text-xs ${theme.subText}`}>
         この画面を1回開いた状態で、当月すべての日の実績をまとめて入力し、最後に1回「全日まとめて保存」を押してください。Excelなどの表からコピーした数値を、いずれかのセルに貼り付けると自動的に複数マスへ展開されます。空欄の項目は保存されません。
       </p>
-      <div className="max-h-80 overflow-y-auto rounded-lg border" style={{ borderColor: theme.dark ? "#1E293B" : "#E2E8F0" }}>
-        <table className="w-full text-xs">
+      <div className="max-h-80 overflow-auto rounded-lg border" style={{ borderColor: theme.dark ? "#1E293B" : "#E2E8F0" }}>
+        <table className="w-full min-w-[760px] text-xs">
           <thead className="sticky top-0" style={{ backgroundColor: theme.dark ? "#0F1A2E" : "#F8FAFC" }}>
             <tr className={`border-b text-left ${theme.subText}`} style={{ borderColor: theme.dark ? "#1E293B" : "#E2E8F0" }}>
               <th className="py-1.5 pl-2 pr-2 font-semibold">日付</th>
@@ -279,7 +279,7 @@ export function BulkDailyRecordForm({ storeId, yearMonth, rows }: { storeId: str
                   {r.dateLabel} <span className={theme.subText}>({r.dowLabel})</span>
                 </td>
                 {BULK_DAILY_COLUMNS.map((field, colIndex) => (
-                  <td key={field} className="py-1 pr-2">
+                  <td key={field} className="min-w-[110px] py-1 pr-2">
                     <input
                       type="text"
                       inputMode="numeric"
@@ -419,8 +419,8 @@ export function BulkBudgetForm({ storeId, yearMonth, rows }: { storeId: string; 
       <p className={`mb-3 text-xs ${theme.subText}`}>
         この画面を1回開いた状態で、当月すべての日の売上予算・人件費予算をまとめて入力し、最後に1回「全日まとめて保存」を押してください。Excelなどの表からコピーした数値を、いずれかのセルに貼り付けると自動的に複数マスへ展開されます。
       </p>
-      <div className="max-h-80 overflow-y-auto rounded-lg border" style={{ borderColor: theme.dark ? "#1E293B" : "#E2E8F0" }}>
-        <table className="w-full text-xs">
+      <div className="max-h-80 overflow-auto rounded-lg border" style={{ borderColor: theme.dark ? "#1E293B" : "#E2E8F0" }}>
+        <table className="w-full min-w-[420px] text-xs">
           <thead className="sticky top-0" style={{ backgroundColor: theme.dark ? "#0F1A2E" : "#F8FAFC" }}>
             <tr className={`border-b text-left ${theme.subText}`} style={{ borderColor: theme.dark ? "#1E293B" : "#E2E8F0" }}>
               <th className="py-1.5 pl-2 pr-2 font-semibold">日付</th>
@@ -434,7 +434,7 @@ export function BulkBudgetForm({ storeId, yearMonth, rows }: { storeId: string; 
                 <td className="py-1 pl-2 pr-2 whitespace-nowrap font-semibold">
                   {r.dateLabel} <span className={theme.subText}>({r.dowLabel})</span>
                 </td>
-                <td className="py-1 pr-2">
+                <td className="min-w-[140px] py-1 pr-2">
                   <input
                     type="number"
                     value={draft[r.isoDate]?.budgetSales ?? ""}
@@ -443,7 +443,7 @@ export function BulkBudgetForm({ storeId, yearMonth, rows }: { storeId: string; 
                     className={inputCls}
                   />
                 </td>
-                <td className="py-1 pr-2">
+                <td className="min-w-[140px] py-1 pr-2">
                   <input
                     type="number"
                     value={draft[r.isoDate]?.laborBudget ?? ""}

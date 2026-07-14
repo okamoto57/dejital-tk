@@ -126,7 +126,10 @@ export function Field({ label, children }: { label: string; children: React.Reac
 
 export function useInputCls() {
   const theme = useAppTheme();
-  return `w-full rounded-lg border px-2.5 py-1.5 text-sm outline-none ${
+  // text-base (16px) is intentional, not cosmetic: iOS Safari auto-zooms the
+  // whole page on focus for any input under 16px, which made every tap in a
+  // dense grid (bulk日別入力 etc.) jump the viewport around on iPhone.
+  return `w-full rounded-lg border px-2.5 py-2 text-base outline-none ${
     theme.dark ? "bg-slate-800 border-slate-700 text-slate-100" : "bg-white border-slate-200 text-slate-800"
   }`;
 }
