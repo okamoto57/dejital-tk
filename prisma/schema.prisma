@@ -48,6 +48,7 @@ model Store {
   inventorySnapshots InventorySnapshot[]
   pettyCashEntries   PettyCashEntry[]
   pettyCashOpenings  PettyCashOpening[]
+  receiptHistories   ReceiptHistory[]
   gourmetMedia       GourmetMediaRecord[]
   snsMetrics         SnsMetric[]
   reputationSnapshots ReputationSnapshot[]
@@ -123,6 +124,18 @@ model PettyCashOpening {
   opening   Float
 
   @@unique([storeId, yearMonth])
+}
+
+model ReceiptHistory {
+  id        String   @id @default(cuid())
+  storeId   String
+  store     Store    @relation(fields: [storeId], references: [id])
+  parsedDate DateTime
+  amount    Float
+  payee     String
+  note      String
+  category  String
+  createdAt DateTime @default(now())
 }
 
 model GourmetMediaRecord {

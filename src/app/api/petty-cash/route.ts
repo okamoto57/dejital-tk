@@ -22,21 +22,43 @@ export async function POST(req: NextRequest) {
   if (inout !== "IN" && inout !== "OUT") {
     return NextResponse.json({ error: "inout must be IN or OUT" }, { status: 400 });
   }
+  const parsedDate = new Date(date);
+  if (Number.isNaN(parsedDate.getTime())) {
+    return NextResponse.json({ error: "date is invalid" }, { status: 400 });
+  }
 
-  const entry = await prisma.pettyCashEntry.create({
-    data: {
-      storeId,
-      date: new Date(date),
-      category,
-      inout,
-      amount,
-      payee: payee || "ー",
-      note: note || "",
-      isFood: isFoodCategory(category),
-    },
-  });
+  try {
+    const entry = await prisma.pettyCashEntry.create({
+      data: {
+        storeId,
+        date: parsedDate,
+        category,
+        inout,
+        amount,
+        payee: payee || "ー",
+        note: note || "",
+        isFood: isFoodCategory(category),
+      },
+    });
 
-  return NextResponse.json(entry);
+    if (inout === "OUT") {
+      await prisma.receiptHistory.create({
+        data: {
+          storeId,
+          parsedDate,
+          amount,
+          payee: payee || "ー",
+          note: note || "",
+          category,
+        },
+      });
+    }
+
+    return NextResponse.json(entry);
+  } catch (err) {
+    console.error('petty-cash POST error', err);
+    return NextResponse.json({ error: 'internal server error' }, { status: 500 });
+  }
 }
 
 export async function DELETE(req: NextRequest) {
