@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from "recharts";
 import { Coins, Wallet, Utensils, TrendingUp, Plus, Trash2, Pencil, Camera, Download } from "lucide-react";
-import { createWorker } from "tesseract.js";
+import { createWorker, PSM } from "tesseract.js";
 import { BRAND } from "@/lib/theme";
 import { PC_CATEGORIES, isFoodCategory } from "@/lib/theme";
 import { yen, pct } from "@/lib/format";
@@ -271,20 +271,44 @@ function PettyCashForm({ storeId }: { storeId: string }) {
     const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const d = imgData.data;
     const gray = new Float32Array(d.length / 4);
-    let min = 255;
-    let max = 0;
+    const hist = new Array(256).fill(0);
     for (let i = 0, p = 0; i < d.length; i += 4, p++) {
       const g = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
       gray[p] = g;
-      if (g < min) min = g;
-      if (g > max) max = g;
+      hist[Math.max(0, Math.min(255, Math.round(g)))]++;
     }
-    const range = Math.max(1, max - min);
+    // Percentile-based stretch, not literal min/max: a receipt crop's
+    // bounding box often includes a sliver of background at the corners
+    // (the receipt is rarely perfectly axis-aligned in the photo), and a
+    // handful of very dark/bright outlier pixels there would otherwise
+    // throw off a naive min/max stretch for the whole crop.
+    const total = gray.length;
+    const lowCut = total * 0.02;
+    const highCut = total * 0.98;
+    let running = 0;
+    let low = 0;
+    let high = 255;
+    for (let v = 0; v < 256; v++) {
+      running += hist[v];
+      if (running >= lowCut) {
+        low = v;
+        break;
+      }
+    }
+    running = 0;
+    for (let v = 255; v >= 0; v--) {
+      running += hist[v];
+      if (running >= total - highCut) {
+        high = v;
+        break;
+      }
+    }
+    const range = Math.max(1, high - low);
     for (let i = 0, p = 0; i < d.length; i += 4, p++) {
       // stretch contrast to the full range, then a mild gamma to push
       // midtones toward black/white so thin receipt text stays legible
-      const stretched = ((gray[p] - min) / range) * 255;
-      const v = 255 * Math.pow(stretched / 255, 1.15);
+      const stretched = Math.max(0, Math.min(255, ((gray[p] - low) / range) * 255));
+      const v = 255 * Math.pow(stretched / 255, 1.1);
       d[i] = d[i + 1] = d[i + 2] = v;
     }
     ctx.putImageData(imgData, 0, 0);
@@ -377,6 +401,15 @@ function PettyCashForm({ storeId }: { storeId: string }) {
     setOcrError(null);
 
     const worker = await createWorker("jpn");
+    try {
+      // PSM 6 = "assume a single uniform block of text", which suits a
+      // tightly cropped receipt far better than the default (PSM 3, tuned
+      // for a full structured page with columns/margins) and measurably
+      // reduces garbled output on skewed phone photos.
+      await worker.setParameters({ tessedit_pageseg_mode: PSM.SINGLE_BLOCK });
+    } catch (e) {
+      console.warn("tesseract setParameters failed", e);
+    }
 
     try {
       // NOTE: do not restrict tessedit_char_whitelist here — a digits-only
