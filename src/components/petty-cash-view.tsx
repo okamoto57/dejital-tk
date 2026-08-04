@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from "recharts";
-import { Coins, Wallet, Utensils, TrendingUp, Plus, Trash2, Pencil, Camera, Download } from "lucide-react";
+import { Coins, Wallet, Utensils, TrendingUp, Plus, Trash2, Pencil, Camera, Download, ClipboardPaste } from "lucide-react";
 import { createWorker, PSM } from "tesseract.js";
 import { BRAND } from "@/lib/theme";
 import { PC_CATEGORIES, isFoodCategory } from "@/lib/theme";
@@ -393,10 +393,9 @@ function PettyCashForm({ storeId }: { storeId: string }) {
     });
   }
 
-  async function handleReceiptUpload(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
+  /** Core OCR pipeline shared by both input paths (camera/file picker and
+   * clipboard paste) — everything past "we have a File" is identical. */
+  async function processReceiptFile(file: File) {
     setOcrStatus("読み取り中...");
     setOcrError(null);
 
@@ -451,7 +450,7 @@ function PettyCashForm({ storeId }: { storeId: string }) {
         setOcrStatus(`複数のレシートを検出しました: ${candidates.length} 件。内容を確認して登録してください。`);
       }
     } catch (e) {
-      console.error("handleReceiptUpload failed", e);
+      console.error("processReceiptFile failed", e);
       setOcrError("レシートの読み取りに失敗しました。別の画像でお試しください。");
       setOcrStatus("");
     } finally {
@@ -460,7 +459,29 @@ function PettyCashForm({ storeId }: { storeId: string }) {
       } catch (e) {
         console.warn("worker terminate failed", e);
       }
-      event.target.value = "";
+    }
+  }
+
+  async function handleReceiptUpload(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    await processReceiptFile(file);
+  }
+
+  /** Lets staff paste a screenshot (LINE Pay, a mail receipt, etc.) straight
+   * from the clipboard, the same way an image can be pasted into a chat —
+   * no camera roll round-trip needed. */
+  async function handleReceiptPaste(event: React.ClipboardEvent<HTMLDivElement>) {
+    const items = event.clipboardData?.items;
+    if (!items) return;
+    for (const item of items) {
+      if (!item.type.startsWith("image/")) continue;
+      const file = item.getAsFile();
+      if (!file) continue;
+      event.preventDefault();
+      await processReceiptFile(file);
+      return;
     }
   }
 
@@ -617,6 +638,17 @@ function PettyCashForm({ storeId }: { storeId: string }) {
             >
               <Camera size={14} /> 写真を読み取る
             </button>
+          </div>
+          <div
+            onPaste={handleReceiptPaste}
+            tabIndex={0}
+            role="button"
+            aria-label="レシート画像を貼り付け"
+            className="mt-2 flex cursor-text items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-xs outline-none focus:ring-2"
+            style={{ borderColor: "#CBD5E1", color: "#64748B" }}
+          >
+            <ClipboardPaste size={14} />
+            ここをタップして選択してから、Ctrl+V(スマホは長押し→貼り付け)でスクリーンショットを貼り付けできます
           </div>
           {(ocrStatus || ocrError) && (
             <p className={`mt-2 text-xs font-medium ${ocrError ? "text-rose-600" : ""}`} style={ocrError ? undefined : { color: BRAND.green }}>
