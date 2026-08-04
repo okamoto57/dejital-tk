@@ -54,8 +54,8 @@ describe("parseReceiptText", () => {
 });
 
 describe("inferCategory", () => {
-  it("maps food-related receipt text to 食材買い出し", () => {
-    expect(inferCategory("八百屋やまと にんじん たまねぎ 野菜")).toBe("食材買い出し");
+  it("maps food-related receipt text to 食材", () => {
+    expect(inferCategory("八百屋やまと にんじん たまねぎ 野菜")).toBe("食材");
   });
 
   it("maps cleaning-supply text to 消耗品", () => {

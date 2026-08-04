@@ -27,7 +27,7 @@ export const TYPE_PROFILE = {
 
 export type StoreType = keyof typeof TYPE_PROFILE;
 
-export const PC_CATEGORIES = ["食材買い出し", "食材(生鮮)", "消耗品", "雑費", "交通費", "備品", "その他"];
+export const PC_CATEGORIES = ["食材", "食材(ドリンク)", "消耗品", "雑費", "交通費", "備品", "その他"];
 export const isFoodCategory = (c: string) => c.includes("食材");
 
 /** Stores that additionally track 大衆点評 (Dianping) reputation, alongside Google/食べログ. */

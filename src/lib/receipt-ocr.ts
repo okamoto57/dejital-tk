@@ -179,7 +179,7 @@ const FOOD_KEYWORDS =
   /(食材|野菜|肉|魚|卵|米|豆|精肉|鮮魚|青果|食品|飲料|酒|惣菜|パン|牛乳|乳製品|ヨーグルト|きゅうり|トマト|キャベツ|にんじん|たまねぎ|玉ねぎ|じゃがいも|ねぎ|レタス|もやし|キムチ|漬物|冷凍食品|調味料|食用油)/;
 
 export function inferCategory(text: string): string {
-  if (FOOD_KEYWORDS.test(text)) return "食材買い出し";
+  if (FOOD_KEYWORDS.test(text)) return "食材";
   if (/(消耗|洗剤|紙|トイレ|ラップ|ポリ袋|軍手|ゴム手袋)/.test(text)) return "消耗品";
   if (/(電車|バス|タクシ|ガソリン|駐車|高速|ETC|定期)/.test(text)) return "交通費";
   if (/(備品|器具|鍋|皿|箸|まな板|工具|電球)/.test(text)) return "備品";

@@ -77,7 +77,7 @@ WAON支払 ¥2,209
     expect(parsed.date).toBe("2026-07-20");
     expect(parsed.amount).toBe(2209);
     expect(parsed.payee).toBe("AEON STYLE");
-    expect(parsed.category).toBe("食材買い出し");
+    expect(parsed.category).toBe("食材");
   });
 
   it("parking receipt (no item lines at all)", () => {
@@ -124,6 +124,6 @@ WAON支払 ¥414
     expect(parsed.date).toBe("2026-07-22");
     expect(parsed.amount).toBe(414);
     expect(parsed.payee).toBe("AEON STYLE");
-    expect(parsed.category).toBe("食材買い出し");
+    expect(parsed.category).toBe("食材");
   });
 });
